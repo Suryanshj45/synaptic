@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synaptic — AI Conversation Intelligence</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a2e;
+      --bg-hover: #242440;
+      --border: #2a2a45;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888a8;
+      --text-muted: #5a5a78;
+      --accent-blue: #4e7cff;
+      --accent-purple: #8b5cf6;
+      --accent-cyan: #06d6a0;
+      --accent-pink: #f72585;
+      --accent-orange: #ff8c42;
+      --accent-yellow: #ffd166;
+      --glow-blue: rgba(78, 124, 255, 0.3);
+      --glow-purple: rgba(139, 92, 246, 0.3);
+      --glow-cyan: rgba(6, 214, 160, 0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ─── Layout ─── */
+    .app { display: flex; height: 100vh; }
+
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ─── Header ─── */
+    .header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .logo h1 {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-tagline {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 42px;
+    }
+
+    /* ─── Stats Bar ─── */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── Topic List ─── */
+    .topics-section {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .topic-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 4px;
+    }
+
+    .topic-item:hover { background: var(--bg-hover); }
+    .topic-item.active { background: var(--bg-hover); border: 1px solid var(--border); }
+
+    .topic-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .topic-name {
+      font-size: 13px;
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .topic-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    /* ─── Graph Area ─── */
+    .graph-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .graph-container svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ─── Drop Zone ─── */
+    .drop-zone {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      background: var(--bg-primary);
+    }
+
+    .drop-zone.has-data { display: none; }
+
+    .drop-zone.dragging {
+      background: rgba(10, 10, 15, 0.95);
+      border: 2px dashed var(--accent-blue);
+    }
+
+    .drop-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(78, 124, 255, 0.1), rgba(139, 92, 246, 0.1));
+      border: 2px dashed var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+    }
+
+    .dragging .drop-icon {
+      border-color: var(--accent-blue);
+      background: rgba(78, 124, 255, 0.15);
+      transform: scale(1.1);
+    }
+
+    .drop-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .drop-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .drop-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      color: white;
+    }
+
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { background: var(--bg-hover); }
+
+    /* ─── Toolbar ─── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+
+    .search-box {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .search-box:focus { border-color: var(--accent-blue); }
+
+    .view-toggle {
+      display: flex;
+      background: var(--bg-card);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .view-btn {
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .view-btn.active {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    /* ─── Tooltip ─── */
+    .tooltip {
+      position: absolute;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      pointer-events: none;
+      z-index: 100;
+      min-width: 220px;
+      max-width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .tooltip.visible { opacity: 1; }
+
+    .tooltip-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .tooltip-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ─── Right Panel ─── */
+    .detail-panel {
+      width: 340px;
+      min-width: 340px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      display: none;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .detail-panel.open { display: flex; }
+
+    .detail-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-close {
+      float: right;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .detail-entity {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .detail-type {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-section h3 {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .connection-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .mention-item {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    /* ─── Timeline View ─── */
+    .timeline-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: none;
+    }
+
+    .timeline-container.active { display: block; }
+
+    .timeline-day {
+      margin-bottom: 24px;
+    }
+
+    .timeline-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .timeline-date::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+    }
+
+    .timeline-item {
+      margin-left: 8px;
+      padding: 12px 16px;
+      border-left: 2px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    .timeline-title {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .timeline-topics {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .timeline-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    /* ─── Analytics View ─── */
+    .analytics-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: none;
+    }
+
+    .analytics-container.active { display: block; }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .analytics-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .analytics-card.full { grid-column: 1 / -1; }
+
+    .analytics-card h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-secondary);
+    }
+
+    .bar-chart-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .bar-label {
+      font-size: 12px;
+      width: 120px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-primary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    .bar-value {
+      font-size: 11px;
+      color: var(--text-muted);
+      width: 30px;
+      text-align: right;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ─── Animations ─── */
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+    /* ─── Graph node labels ─── */
+    .node-label {
+      font-size: 10px;
+      fill: var(--text-secondary);
+      text-anchor: middle;
+      pointer-events: none;
+      font-weight: 500;
+    }
+
+    /* ─── Hidden file input ─── */
+    #file-input { display: none; }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 1024px) {
+      .sidebar { width: 260px; min-width: 260px; }
+      .detail-panel { width: 280px; min-width: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-icon">S</div>
+          <h1>Synaptic</h1>
+        </div>
+        <div class="logo-tagline">AI Conversation Intelligence</div>
+      </div>
+
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-conversations">0</div>
+          <div class="stat-label">Chats</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-entities">0</div>
+          <div class="stat-label">Entities</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-connections">0</div>
+          <div class="stat-label">Links</div>
+        </div>
+      </div>
+
+      <div class="topics-section" id="topics-list">
+        <div class="section-title">Topic Clusters</div>
+      </div>
+    </div>
+
+    <!-- Main Area -->
+    <div class="main-area">
+      <div class="toolbar" id="toolbar" style="display:none">
+        <input type="text" class="search-box" placeholder="Search entities, topics, conversations..." id="search-input" />
+        <div class="view-toggle">
+          <button class="view-btn active" data-view="graph">Graph</button>
+          <button class="view-btn" data-view="timeline">Timeline</button>
+          <button class="view-btn" data-view="analytics">Analytics</button>
+        </div>
+        <button class="btn btn-secondary" id="import-more-btn" style="font-size:12px">+ Import</button>
+      </div>
+
+      <!-- Graph View -->
+      <div class="graph-container" id="graph-container">
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon">S</div>
+          <div class="drop-title">Drop your AI conversations here</div>
+          <div class="drop-subtitle">
+            Import ChatGPT or Claude exports to visualize<br/>
+            your conversations as an interactive knowledge graph
+          </div>
+          <div class="drop-actions">
+            <button class="btn btn-primary" id="upload-btn">Import JSON Export</button>
+            <button class="btn btn-secondary" id="demo-btn">Try Demo Data</button>
+          </div>
+          <div style="margin-top:20px; font-size:11px; color:var(--text-muted)">
+            100% client-side — your data never leaves your browser
+          </div>
+        </div>
+        <svg id="graph-svg"></svg>
+      </div>
+
+      <!-- Timeline View -->
+      <div class="timeline-container" id="timeline-container"></div>
+
+      <!-- Analytics View -->
+      <div class="analytics-container" id="analytics-container"></div>
+
+      <!-- Tooltip -->
+      <div class="tooltip" id="tooltip">
+        <div class="tooltip-title" id="tooltip-title"></div>
+        <div class="tooltip-meta" id="tooltip-meta"></div>
+      </div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-header">
+        <button class="detail-close" id="detail-close">&times;</button>
+        <div class="detail-entity" id="detail-entity"></div>
+        <div class="detail-type" id="detail-type"></div>
+      </div>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" accept=".json,.zip" multiple />
+
+  <script>
+  // ─────────────────────────────────────────────────────────────
+  //  Synaptic — AI Conversation Intelligence
+  //  100% client-side · Zero dependencies (except D3) · MIT License
+  // ─────────────────────────────────────────────────────────────
+
+  const COLORS = {
+    person:   '#4e7cff',
+    tech:     '#8b5cf6',
+    concept:  '#06d6a0',
+    place:    '#f72585',
+    org:      '#ff8c42',
+    topic:    '#ffd166',
+    project:  '#4ecdc4',
+    default:  '#6c7a96'
+  };
+
+  const CLUSTER_COLORS = [
+    '#4e7cff', '#8b5cf6', '#06d6a0', '#f72585', '#ff8c42',
+    '#ffd166', '#4ecdc4', '#ef476f', '#118ab2', '#073b4c'
+  ];
+
+  // ─── State ───
+  let state = {
+    conversations: [],
+    entities: [],
+    links: [],
+    clusters: [],
+    selectedEntity: null,
+    currentView: 'graph',
+    searchQuery: '',
+    simulation: null
+  };
+
+  // ─── Entity Extraction ───
+  const STOP_WORDS = new Set([
+    'the','a','an','is','are','was','were','be','been','being','have','has','had',
+    'do','does','did','will','would','shall','should','may','might','can','could',
+    'i','you','he','she','it','we','they','me','him','her','us','them','my','your',
+    'his','its','our','their','this','that','these','those','what','which','who',
+    'whom','where','when','why','how','not','no','nor','but','and','or','if','then',
+    'else','for','from','to','in','on','at','by','with','about','as','of','into',
+    'through','during','before','after','above','below','between','out','off','over',
+    'under','again','further','just','also','very','often','too','so','than','some',
+    'such','only','own','same','both','each','few','more','most','other','any','all',
+    'here','there','up','down','get','got','make','made','like','know','think','want',
+    'need','use','using','used','try','said','tell','told','help','really','thing',
+    'things','going','way','much','well','back','one','two','even','new','because',
+    'good','great','right','still','many','now','come','take','say','see','look',
+    'give','let','something','sure','please','okay','thanks','thank','yeah','yes',
+    'could','should','would','might','also','however','example','question','answer',
+    'code','file','work','working','create','add','change','update','write','read',
+    'time','real','first','step','perfect','great','system','based','support',
+    'data','model','using','team','type','server','services','pipeline','local',
+    'build','project','handle','tool','tools','layer','approach','pattern',
+    'format','deploy','setup','process','client','query','queries','feature',
+    'tracking','state','management','routing','testing','running','simple',
+    'entire','function','directly','provides','instead','another','across',
+    'application','combined','separate','different','specific','completely',
+    'recommend','structure','integrate','implement','configure','conversion',
+    'excellent','perfect','beautiful','handling','processing','environment'
+  ]);
+
+  const TECH_TERMS = new Set([
+    'react','javascript','typescript','python','rust','golang','node','nextjs','vue',
+    'angular','svelte','django','flask','fastapi','express','docker','kubernetes',
+    'aws','gcp','azure','postgres','mongodb','redis','graphql','rest','api','css',
+    'html','tailwind','webpack','vite','git','github','linux','tensorflow','pytorch',
+    'openai','anthropic','claude','gpt','llm','langchain','vector','embedding',
+    'chromadb','sqlite','supabase','vercel','netlify','figma','notion','slack',
+    'mcp','rag','transformer','bert','diffusion','cuda','wasm','webgl','three.js',
+    'd3','pandas','numpy','scipy','matplotlib','jupyter','conda','pip','npm','yarn',
+    'pnpm','deno','bun','zig','elixir','phoenix','rails','ruby','swift','kotlin',
+    'java','scala','haskell','ocaml','clojure','lisp','sql','nosql','firebase',
+    'postgresql','elasticsearch','sqlalchemy','clickhouse','timescaledb',
+    'langchain','chromadb','mlflow','sagemaker','databricks','airflow',
+    'celery','gunicorn','uvicorn','pydantic','alembic','mongoose',
+    'prisma','drizzle','trpc','remix','astro','solid','qwik'
+  ]);
+
+  const MULTI_WORD_TECH = new Set([
+    'react native','vue.js','next.js','node.js','ruby on rails',
+    'apache kafka','apache spark','apache flink','apache airflow',
+    'google cloud','amazon web','azure devops','visual studio',
+    'machine learning','deep learning','natural language',
+    'open source','real time','full stack','front end','back end',
+    'red hat','digital ocean','cloud run','app engine',
+    'spring boot','entity framework','ruby rails'
+  ]);
+
+  const TITLE_CASE_STOPS = new Set([
+    'the','a','an','and','or','but','for','with','from','this','that','these',
+    'those','your','our','their','its','his','her','also','just','very','some',
+    'each','both','such','when','then','here','there','will','would','could',
+    'should','might','let','use','using','first','then','next','after','before',
+    'testing','setting','building','running','getting','creating','adding'
+  ]);
+
+  // HTML entity escaping to prevent XSS
+  function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  const HTML_DANGEROUS = new Set([
+    'script','alert','onclick','onerror','onload','onmouseover',
+    'onfocus','onblur','iframe','embed','vbscript','expression',
+    'applet'
+  ]);
+
+  function extractEntities(text) {
+    const entities = {};
+
+    // Strip HTML tags to prevent XSS-derived entity extraction
+    text = text.replace(/<[^>]{1,200}>/g, ' ');
+
+    // Extract capitalized multi-word phrases (likely proper nouns)
+    const properNouns = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g) || [];
+    properNouns.forEach(rawName => {
+      // Strip leading title-case stop words (e.g. "The Tailwind" → skip)
+      let words = rawName.split(/\s+/);
+      while (words.length && TITLE_CASE_STOPS.has(words[0].toLowerCase())) {
+        words = words.slice(1);
+      }
+      if (words.length < 2) return; // need 2+ words for a proper noun phrase
+      const name = words.join(' ');
+      const key = name.toLowerCase();
+      if (!STOP_WORDS.has(key) && name.length > 3 && !MULTI_WORD_TECH.has(key)) {
+        entities[key] = entities[key] || { name, type: 'person', count: 0 };
+        entities[key].count++;
+      }
+    });
+
+    // Extract tech terms — ASCII-only fragments (no \b) to handle multilingual text
+    // e.g. "FastAPIとJinja2テンプレート" → ["fastapi", "jinja2"]
+    const lowerText = text.toLowerCase();
+    const words = lowerText.match(/[a-z][a-z0-9.#+]+/g) || [];
+    words.forEach(w => {
+      if (TECH_TERMS.has(w)) {
+        entities[w] = entities[w] || { name: w, type: 'tech', count: 0 };
+        entities[w].count++;
+      }
+    });
+
+    // Extract quoted terms as concepts
+    const quoted = text.match(/"([^"]{3,40})"/g) || [];
+    quoted.forEach(q => {
+      const clean = q.replace(/"/g, '').trim().toLowerCase();
+      if (!STOP_WORDS.has(clean) && clean.length > 2) {
+        entities[clean] = entities[clean] || { name: clean, type: 'concept', count: 0 };
+        entities[clean].count++;
+      }
+    });
+
+    // Extract frequent nouns (2+ occurrences, non-stop-word, filter HTML-dangerous words)
+    const freq = {};
+    words.forEach(w => {
+      if (!STOP_WORDS.has(w) && !TECH_TERMS.has(w) && w.length > 3 && !HTML_DANGEROUS.has(w)) {
+        freq[w] = (freq[w] || 0) + 1;
+      }
+    });
+    Object.entries(freq)
+      .filter(([_, c]) => c >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30)
+      .forEach(([word, count]) => {
+        if (!entities[word]) {
+          entities[word] = { name: word, type: 'concept', count };
+        }
+      });
+
+    return entities;
+  }
+
+  function buildGraph(conversations) {
+    const globalEntities = {};
+    const cooccurrences = {};
+
+    conversations.forEach((conv, ci) => {
+      const text = conv.messages.map(m => m.content).join(' ');
+      const ents = extractEntities(text);
+
+      const keys = Object.keys(ents);
+      keys.forEach(k => {
+        if (!globalEntities[k]) {
+          globalEntities[k] = { ...ents[k], conversations: new Set(), id: k };
+        }
+        globalEntities[k].count = (globalEntities[k].count || 0) + ents[k].count;
+        globalEntities[k].conversations.add(ci);
+      });
+
+      // Co-occurrence links
+      for (let i = 0; i < keys.length; i++) {
+        for (let j = i + 1; j < keys.length; j++) {
+          const pair = [keys[i], keys[j]].sort().join('|||');
+          cooccurrences[pair] = (cooccurrences[pair] || 0) + 1;
+        }
+      }
+    });
+
+    // Filter to top entities
+    const sorted = Object.values(globalEntities)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 120);
+
+    const entitySet = new Set(sorted.map(e => e.id));
+
+    // Build links from co-occurrences
+    const links = [];
+    Object.entries(cooccurrences)
+      .filter(([_, v]) => v >= 1)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([pair, weight]) => {
+        const [s, t] = pair.split('|||');
+        if (entitySet.has(s) && entitySet.has(t)) {
+          links.push({ source: s, target: t, weight });
+        }
+      });
+
+    // Simple clustering via connected components with type grouping
+    const clusters = clusterEntities(sorted, links);
+
+    return {
+      entities: sorted.map(e => ({
+        ...e,
+        conversations: [...e.conversations],
+        cluster: clusters[e.id] || 0
+      })),
+      links: links.slice(0, 300)
+    };
+  }
+
+  function clusterEntities(entities, links) {
+    const adj = {};
+    entities.forEach(e => adj[e.id] = new Set());
+    links.forEach(l => {
+      if (adj[l.source]) adj[l.source].add(l.target);
+      if (adj[l.target]) adj[l.target].add(l.source);
+    });
+
+    const visited = {};
+    let clusterId = 0;
+    const clusters = {};
+
+    entities.forEach(e => {
+      if (visited[e.id]) return;
+      const queue = [e.id];
+      visited[e.id] = true;
+      while (queue.length) {
+        const node = queue.shift();
+        clusters[node] = clusterId;
+        (adj[node] || []).forEach(nb => {
+          if (!visited[nb]) {
+            visited[nb] = true;
+            queue.push(nb);
+          }
+        });
+      }
+      clusterId++;
+    });
+
+    return clusters;
+  }
+
+  // ─── Data Parsers ───
+  function parseChatGPT(data) {
+    // ChatGPT export: array of { title, mapping: { ... } } or similar
+    if (Array.isArray(data)) {
+      return data.map(conv => {
+        const messages = [];
+        const title = conv.title || 'Untitled';
+        const created = conv.create_time ? new Date(conv.create_time * 1000) : new Date();
+
+        if (conv.mapping) {
+          Object.values(conv.mapping).forEach(node => {
+            if (node.message && node.message.content && node.message.content.parts) {
+              const role = node.message.author?.role || 'unknown';
+              const content = node.message.content.parts
+                .filter(p => typeof p === 'string')
+                .join('\n');
+              if (content.trim()) {
+                messages.push({ role, content, timestamp: node.message.create_time });
+              }
+            }
+          });
+        } else if (conv.messages) {
+          conv.messages.forEach(m => {
+            messages.push({
+              role: m.role || m.author || 'unknown',
+              content: m.content || m.text || '',
+              timestamp: m.timestamp || m.create_time
+            });
+          });
+        }
+
+        return { title, messages, created, source: 'chatgpt' };
+      });
+    }
+    return [];
+  }
+
+  function parseClaude(data) {
+    // Claude export: array of conversations or single conversation
+    if (Array.isArray(data)) {
+      return data.map(conv => ({
+        title: conv.name || conv.title || 'Untitled',
+        messages: (conv.chat_messages || conv.messages || []).map(m => ({
+          role: m.sender || m.role || 'unknown',
+          content: typeof m.text === 'string' ? m.text :
+                   (m.content || (Array.isArray(m.text) ? m.text.map(t => t.text || '').join('') : '')),
+          timestamp: m.created_at || m.timestamp
+        })),
+        created: new Date(conv.created_at || conv.updated_at || Date.now()),
+        source: 'claude'
+      }));
+    }
+    return [];
+  }
+
+  function parseGeneric(data) {
+    // Try to handle any JSON structure
+    if (data.conversations) return parseGeneric(data.conversations);
+    if (data.chats) return parseGeneric(data.chats);
+    if (Array.isArray(data) && data.length > 0) {
+      const first = data[0];
+      if (first.mapping) return parseChatGPT(data);
+      if (first.chat_messages) return parseClaude(data);
+      if (first.messages) {
+        return data.map(c => ({
+          title: c.title || c.name || 'Untitled',
+          messages: (c.messages || []).map(m => ({
+            role: m.role || m.sender || 'user',
+            content: m.content || m.text || '',
+            timestamp: m.timestamp || m.created_at
+          })),
+          created: new Date(c.created_at || c.create_time * 1000 || Date.now()),
+          source: 'generic'
+        }));
+      }
+    }
+    return [];
+  }
+
+  function importData(jsonData) {
+    let conversations = parseChatGPT(jsonData);
+    if (!conversations.length) conversations = parseClaude(jsonData);
+    if (!conversations.length) conversations = parseGeneric(jsonData);
+
+    // Filter out empty conversations
+    conversations = conversations.filter(c => c.messages.length > 0);
+
+    if (conversations.length === 0) {
+      alert('Could not parse the file. Please ensure it\'s a ChatGPT or Claude export (JSON format).');
+      return;
+    }
+
+    state.conversations = conversations;
+    const graph = buildGraph(conversations);
+    state.entities = graph.entities;
+    state.links = graph.links;
+
+    // Build clusters
+    const clusterMap = {};
+    state.entities.forEach(e => {
+      if (!clusterMap[e.cluster]) {
+        clusterMap[e.cluster] = { id: e.cluster, entities: [], count: 0 };
+      }
+      clusterMap[e.cluster].entities.push(e);
+      clusterMap[e.cluster].count += e.count;
+    });
+    state.clusters = Object.values(clusterMap)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+
+    // Name clusters by top entity
+    state.clusters.forEach((c, i) => {
+      c.color = CLUSTER_COLORS[i % CLUSTER_COLORS.length];
+      c.name = c.entities.sort((a, b) => b.count - a.count)[0]?.name || `Cluster ${i}`;
+    });
+
+    renderUI();
+  }
+
+  // ─── Demo Data Generator ───
+  function generateDemoData() {
+    const demoConversations = [
+      {
+        title: "Building a React dashboard with D3.js",
+        messages: [
+          { role: "user", content: "I want to build an interactive dashboard using React and D3.js for data visualization. The dashboard should show real-time metrics from our PostgreSQL database. We're using Next.js for the framework." },
+          { role: "assistant", content: "Great choice! React and D3.js work really well together for dashboards. I'd recommend using D3 for the low-level SVG manipulation and React for state management. For real-time data from PostgreSQL, you could use Supabase's realtime subscriptions or set up a WebSocket connection with your Next.js API routes." },
+          { role: "user", content: "What about using Recharts instead of raw D3? Our team at Acme Corp is more familiar with declarative APIs. Sarah from the design team wants Tailwind CSS for styling." },
+          { role: "assistant", content: "Recharts is a great alternative - it's built on top of D3 but provides React-friendly declarative components. Combined with Tailwind CSS, your team will move faster. I'd suggest structuring your Next.js project with separate components for each chart type." }
+        ],
+        created: new Date('2026-03-15')
+      },
+      {
+        title: "Machine Learning pipeline with Python",
+        messages: [
+          { role: "user", content: "I need to set up a machine learning pipeline using Python, scikit-learn, and TensorFlow. The data comes from our MongoDB database and needs preprocessing with Pandas and NumPy." },
+          { role: "assistant", content: "Let's design this pipeline step by step. First, use PyMongo to extract data from MongoDB into Pandas DataFrames. Then apply NumPy for numerical transformations. For the ML models, scikit-learn is perfect for classical approaches, while TensorFlow handles deep learning." },
+          { role: "user", content: "We also want to deploy this on AWS using Docker containers. The team lead Mike wants everything tracked in MLflow for experiment management." },
+          { role: "assistant", content: "Excellent plan. Docker will containerize your pipeline for consistent environments. On AWS, you can use ECS or EKS for orchestration. MLflow integrates nicely - use it for tracking experiments, packaging models, and serving predictions. Set up a CI/CD pipeline with GitHub Actions." }
+        ],
+        created: new Date('2026-03-18')
+      },
+      {
+        title: "Setting up a Kubernetes cluster",
+        messages: [
+          { role: "user", content: "How do I set up a Kubernetes cluster on Google Cloud Platform? We need it for our microservices architecture. Currently running Docker Compose locally." },
+          { role: "assistant", content: "GKE (Google Kubernetes Engine) is the easiest way to get started on GCP. You'll need to install gcloud CLI and kubectl. Your Docker Compose services will need to be converted to Kubernetes manifests - Deployments, Services, and ConfigMaps." },
+          { role: "user", content: "We have services written in Golang and Rust. The API gateway uses Express.js. How should we structure the namespaces?" },
+          { role: "assistant", content: "I'd recommend separate namespaces per environment (dev, staging, prod) and potentially per team. Your Golang and Rust services will have tiny container images which is great for K8s. For the Express.js API gateway, consider using Istio or Kong for service mesh capabilities." }
+        ],
+        created: new Date('2026-03-22')
+      },
+      {
+        title: "Building an AI chatbot with LangChain",
+        messages: [
+          { role: "user", content: "I want to build a RAG-based chatbot using LangChain and OpenAI's GPT API. The knowledge base is stored in PDF documents that need to be chunked and embedded into ChromaDB." },
+          { role: "assistant", content: "Perfect use case for RAG! Use LangChain's document loaders for PDFs, then split with RecursiveCharacterTextSplitter. For embeddings, OpenAI's text-embedding-3-small is cost-effective. ChromaDB is great for local development - store your vector embeddings there." },
+          { role: "user", content: "Can we use Anthropic's Claude instead of GPT? Also, the team at DataFlow Inc wants to add a memory layer using MemPalace for conversation persistence across sessions." },
+          { role: "assistant", content: "Absolutely! Claude works great with LangChain - just swap the LLM provider. For persistent memory, MemPalace is an excellent choice. It structures memories hierarchically and achieves great retrieval scores. You can integrate it via MCP tools." }
+        ],
+        created: new Date('2026-03-28')
+      },
+      {
+        title: "Designing a REST API with FastAPI",
+        messages: [
+          { role: "user", content: "I'm building a REST API with FastAPI for our e-commerce platform. We need endpoints for products, orders, and user authentication. The database is PostgreSQL with SQLAlchemy ORM." },
+          { role: "assistant", content: "FastAPI is excellent for this. Use Pydantic models for request/response validation, SQLAlchemy for ORM, and Alembic for database migrations. For authentication, implement JWT tokens with python-jose." },
+          { role: "user", content: "The frontend team led by Alex is using Vue.js. They need CORS configured properly. We also want Redis for caching frequently accessed product data." },
+          { role: "assistant", content: "Add fastapi-cors middleware for CORS. Redis is perfect for caching - use aioredis for async Redis operations in FastAPI. Cache product listings and user sessions. Set up a reverse proxy with Nginx for production." }
+        ],
+        created: new Date('2026-04-02')
+      },
+      {
+        title: "Rust WebAssembly game engine",
+        messages: [
+          { role: "user", content: "I'm exploring building a 2D game engine in Rust that compiles to WebAssembly. Want to use WebGL for rendering through the wasm-bindgen bridge." },
+          { role: "assistant", content: "Rust + WASM is a powerful combo for game engines. Use wasm-bindgen for JS interop, web-sys for WebGL bindings. Structure your engine with an ECS (Entity Component System) pattern - the specs or legion crate works well." },
+          { role: "user", content: "The game needs physics simulation. My colleague Jordan at PixelForge Studios wants to integrate rapier2d. Also considering Three.js for the 3D rendering layer." },
+          { role: "assistant", content: "Rapier2d is the go-to physics engine for Rust - it's fast and WASM-compatible. For 3D, you could have Rust handle game logic and physics, while Three.js handles rendering on the JS side. Use SharedArrayBuffer for efficient data passing between WASM and JS." }
+        ],
+        created: new Date('2026-04-05')
+      },
+      {
+        title: "CI/CD pipeline with GitHub Actions",
+        messages: [
+          { role: "user", content: "Need to set up a comprehensive CI/CD pipeline using GitHub Actions for our monorepo. We have TypeScript frontend, Python backend, and Rust microservices. Deploy to AWS." },
+          { role: "assistant", content: "For a monorepo, use path filters in GitHub Actions to trigger specific workflows per service. Use matrix builds for testing across multiple versions. Cache dependencies (npm, pip, cargo) aggressively." },
+          { role: "user", content: "The DevOps lead Lisa wants Terraform for infrastructure as code. We need staging and production environments with blue-green deployments." },
+          { role: "assistant", content: "Terraform is ideal for managing AWS infrastructure. Use Terraform workspaces for staging/prod. Implement blue-green deployments with AWS ALB target group switching. Store Terraform state in S3 with DynamoDB locking." }
+        ],
+        created: new Date('2026-04-08')
+      },
+      {
+        title: "GraphQL API with Apollo Server",
+        messages: [
+          { role: "user", content: "Switching our REST API to GraphQL using Apollo Server with TypeScript. Need to handle complex nested queries for our social media platform's data model." },
+          { role: "assistant", content: "Apollo Server with TypeScript provides great type safety for GraphQL. Use code-first schema definition with TypeGraphQL or Nexus. Implement DataLoader for batching and caching to avoid N+1 queries." },
+          { role: "user", content: "Our lead architect Priya wants real-time subscriptions for the chat feature. Database is MongoDB with Mongoose ODM." },
+          { role: "assistant", content: "Apollo Server supports WebSocket subscriptions out of the box. Use graphql-ws for the subscription transport. With MongoDB, implement change streams for real-time data updates. Mongoose works well with GraphQL resolvers." }
+        ],
+        created: new Date('2026-04-10')
+      },
+      {
+        title: "Svelte + Supabase realtime app",
+        messages: [
+          { role: "user", content: "Building a collaborative whiteboard app with Svelte and Supabase. Need real-time cursor tracking and drawing sync across users." },
+          { role: "assistant", content: "Svelte's reactivity model is perfect for real-time apps. Use Supabase's Realtime feature with broadcast channels for cursor positions and presence detection. Canvas API for the drawing layer." },
+          { role: "user", content: "We want to add AI-powered shape recognition. The product manager Tom from Creative Tools Co wants to use TensorFlow.js for client-side inference." },
+          { role: "assistant", content: "TensorFlow.js can run shape recognition models entirely in the browser. Train a small CNN on common shapes, export to TFJS format. Use requestAnimationFrame for smooth real-time canvas rendering with Svelte's tick." }
+        ],
+        created: new Date('2026-04-12')
+      },
+      {
+        title: "Elixir Phoenix LiveView dashboard",
+        messages: [
+          { role: "user", content: "Want to build a real-time analytics dashboard using Elixir's Phoenix framework with LiveView. Data streams from our Kafka cluster." },
+          { role: "assistant", content: "Phoenix LiveView is perfect for real-time dashboards without writing JavaScript. Use Broadway for consuming Kafka messages in Elixir. GenServer processes can aggregate metrics and push updates to LiveView." },
+          { role: "user", content: "Need to display time-series charts. The data team uses ClickHouse for analytics storage. Deploy on Fly.io for easy scaling." },
+          { role: "assistant", content: "For charts in LiveView, use the chartkick library or hook into Chart.js via LiveView hooks. ClickHouse has an Elixir client - use it for fast analytical queries. Fly.io has excellent Elixir support with built-in clustering via libcluster." }
+        ],
+        created: new Date('2026-04-14')
+      }
+    ];
+
+    importData(demoConversations.map(c => ({
+      title: c.title,
+      messages: c.messages,
+      create_time: c.created.getTime() / 1000,
+      mapping: null
+    })));
+  }
+
+  // ─── Render Functions ───
+  function renderUI() {
+    document.getElementById('drop-zone').classList.add('has-data');
+    document.getElementById('toolbar').style.display = 'flex';
+
+    // Stats
+    document.getElementById('stat-conversations').textContent = state.conversations.length;
+    document.getElementById('stat-entities').textContent = state.entities.length;
+    document.getElementById('stat-connections').textContent = state.links.length;
+
+    renderTopics();
+    renderGraph();
+    renderTimeline();
+    renderAnalytics();
+  }
+
+  function renderTopics() {
+    const container = document.getElementById('topics-list');
+    container.innerHTML = '<div class="section-title">Topic Clusters</div>';
+
+    state.clusters.forEach(cluster => {
+      const item = document.createElement('div');
+      item.className = 'topic-item';
+      item.innerHTML = `
+        <div class="topic-dot" style="background:${cluster.color}"></div>
+        <div class="topic-name">${esc(cluster.name)}</div>
+        <div class="topic-count">${cluster.entities.length}</div>
+      `;
+      item.addEventListener('click', () => highlightCluster(cluster.id));
+      container.appendChild(item);
+    });
+  }
+
+  // ─── D3 Force Graph ───
+  function renderGraph() {
+    // Stop previous simulation to prevent memory leak
+    if (state.simulation) {
+      state.simulation.stop();
+      state.simulation = null;
+    }
+
+    const svg = d3.select('#graph-svg');
+    svg.selectAll('*').remove();
+
+    const container = document.getElementById('graph-container');
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    svg.attr('viewBox', [0, 0, width, height]);
+
+    // Defs for glow effect
+    const defs = svg.append('defs');
+    const filter = defs.append('filter').attr('id', 'glow');
+    filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
+    const merge = filter.append('feMerge');
+    merge.append('feMergeNode').attr('in', 'coloredBlur');
+    merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    const g = svg.append('g');
+
+    // Zoom
+    const zoom = d3.zoom()
+      .scaleExtent([0.2, 5])
+      .on('zoom', (event) => g.attr('transform', event.transform));
+    svg.call(zoom);
+
+    // Scale
+    const maxCount = d3.max(state.entities, d => d.count) || 1;
+    const rScale = d3.scaleSqrt().domain([1, maxCount]).range([4, 24]);
+
+    // Force simulation
+    const simulation = d3.forceSimulation(state.entities)
+      .force('link', d3.forceLink(state.links).id(d => d.id).distance(80).strength(0.3))
+      .force('charge', d3.forceManyBody().strength(-120))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(d => rScale(d.count) + 8));
+
+    state.simulation = simulation;
+
+    // Links
+    const link = g.append('g')
+      .selectAll('line')
+      .data(state.links)
+      .join('line')
+      .attr('stroke', 'rgba(78, 124, 255, 0.12)')
+      .attr('stroke-width', d => Math.min(d.weight, 4) * 0.5);
+
+    // Node groups
+    const node = g.append('g')
+      .selectAll('g')
+      .data(state.entities)
+      .join('g')
+      .attr('cursor', 'pointer')
+      .call(d3.drag()
+        .on('start', dragstarted)
+        .on('drag', dragged)
+        .on('end', dragended));
+
+    // Node circles
+    node.append('circle')
+      .attr('r', d => rScale(d.count))
+      .attr('fill', d => {
+        const cluster = state.clusters.find(c => c.id === d.cluster);
+        return cluster ? cluster.color : COLORS[d.type] || COLORS.default;
+      })
+      .attr('opacity', 0.85)
+      .attr('filter', 'url(#glow)')
+      .attr('stroke', d => {
+        const cluster = state.clusters.find(c => c.id === d.cluster);
+        return cluster ? cluster.color : COLORS[d.type] || COLORS.default;
+      })
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.3);
+
+    // Labels for larger nodes
+    node.filter(d => d.count >= 2)
+      .append('text')
+      .attr('class', 'node-label')
+      .attr('dy', d => rScale(d.count) + 14)
+      .text(d => d.name.length > 18 ? d.name.slice(0, 16) + '..' : d.name);
+
+    // Interactions
+    node.on('mouseover', (event, d) => {
+      const tooltip = document.getElementById('tooltip');
+      const cluster = state.clusters.find(c => c.id === d.cluster);
+      document.getElementById('tooltip-title').textContent = d.name;
+      document.getElementById('tooltip-meta').innerHTML =
+        `Type: ${esc(d.type)}<br>` +
+        `Mentions: ${d.count}<br>` +
+        `Conversations: ${d.conversations.length}<br>` +
+        `Cluster: ${cluster ? esc(cluster.name) : 'none'}`;
+      tooltip.style.left = (event.clientX + 16) + 'px';
+      tooltip.style.top = (event.clientY - 16) + 'px';
+      tooltip.classList.add('visible');
+
+      // Highlight connected
+      const connected = new Set();
+      state.links.forEach(l => {
+        const sid = typeof l.source === 'object' ? l.source.id : l.source;
+        const tid = typeof l.target === 'object' ? l.target.id : l.target;
+        if (sid === d.id) connected.add(tid);
+        if (tid === d.id) connected.add(sid);
+      });
+
+      node.select('circle')
+        .attr('opacity', n => n.id === d.id || connected.has(n.id) ? 1 : 0.15);
+      link.attr('stroke-opacity', l => {
+        const sid = typeof l.source === 'object' ? l.source.id : l.source;
+        const tid = typeof l.target === 'object' ? l.target.id : l.target;
+        return sid === d.id || tid === d.id ? 0.6 : 0.03;
+      });
+    })
+    .on('mouseout', () => {
+      document.getElementById('tooltip').classList.remove('visible');
+      node.select('circle').attr('opacity', 0.85);
+      link.attr('stroke-opacity', 1).attr('stroke', 'rgba(78, 124, 255, 0.12)');
+    })
+    .on('click', (event, d) => showDetail(d));
+
+    simulation.on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+    function dragstarted(event) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      event.subject.fx = event.subject.x;
+      event.subject.fy = event.subject.y;
+    }
+
+    function dragged(event) {
+      event.subject.fx = event.x;
+      event.subject.fy = event.y;
+    }
+
+    function dragended(event) {
+      if (!event.active) simulation.alphaTarget(0);
+      event.subject.fx = null;
+      event.subject.fy = null;
+    }
+  }
+
+  function highlightCluster(clusterId) {
+    const svg = d3.select('#graph-svg');
+    const clusterEntities = new Set(
+      state.entities.filter(e => e.cluster === clusterId).map(e => e.id)
+    );
+
+    svg.selectAll('circle')
+      .attr('opacity', d => clusterEntities.has(d.id) ? 1 : 0.1);
+
+    svg.selectAll('line')
+      .attr('stroke-opacity', d => {
+        const sid = typeof d.source === 'object' ? d.source.id : d.source;
+        const tid = typeof d.target === 'object' ? d.target.id : d.target;
+        return clusterEntities.has(sid) && clusterEntities.has(tid) ? 0.6 : 0.02;
+      });
+
+    setTimeout(() => {
+      svg.selectAll('circle').attr('opacity', 0.85);
+      svg.selectAll('line').attr('stroke-opacity', 1).attr('stroke', 'rgba(78, 124, 255, 0.12)');
+    }, 3000);
+  }
+
+  // ─── Detail Panel ───
+  function showDetail(entity) {
+    const panel = document.getElementById('detail-panel');
+    panel.classList.add('open');
+
+    document.getElementById('detail-entity').textContent = entity.name;
+    document.getElementById('detail-type').textContent = entity.type;
+
+    const content = document.getElementById('detail-content');
+
+    // Find connections
+    const connections = [];
+    state.links.forEach(l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      if (sid === entity.id) connections.push({ entity: state.entities.find(e => e.id === tid), weight: l.weight });
+      if (tid === entity.id) connections.push({ entity: state.entities.find(e => e.id === sid), weight: l.weight });
+    });
+    connections.sort((a, b) => b.weight - a.weight);
+
+    // Find conversation mentions
+    const mentions = entity.conversations.map(ci => state.conversations[ci]).filter(Boolean);
+
+    content.innerHTML = `
+      <div class="detail-section">
+        <h3>Stats</h3>
+        <div style="font-size:13px; line-height:1.8">
+          Mentioned <strong>${entity.count}</strong> times across
+          <strong>${entity.conversations.length}</strong> conversations<br/>
+          Connected to <strong>${connections.length}</strong> other entities
+        </div>
+      </div>
+      <div class="detail-section">
+        <h3>Top Connections (${connections.length})</h3>
+        ${connections.slice(0, 10).map(c => c.entity ? `
+          <div class="connection-item">
+            <div class="connection-dot" style="background:${COLORS[c.entity.type] || COLORS.default}"></div>
+            <span>${esc(c.entity.name)}</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">${c.weight}x</span>
+          </div>
+        ` : '').join('')}
+      </div>
+      <div class="detail-section">
+        <h3>Conversations (${mentions.length})</h3>
+        ${mentions.slice(0, 8).map(m => `
+          <div class="mention-item">${esc(m.title)}</div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // ─── Timeline View ───
+  function renderTimeline() {
+    const container = document.getElementById('timeline-container');
+
+    const byDate = {};
+    state.conversations.forEach(conv => {
+      const date = conv.created ? new Date(conv.created).toLocaleDateString() : 'Unknown';
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push(conv);
+    });
+
+    container.innerHTML = Object.entries(byDate)
+      .sort((a, b) => new Date(b[0]) - new Date(a[0]))
+      .map(([date, convs]) => `
+        <div class="timeline-day fade-in">
+          <div class="timeline-date">${date}</div>
+          ${convs.map(c => {
+            const text = c.messages.map(m => m.content).join(' ');
+            const ents = Object.values(extractEntities(text)).slice(0, 5);
+            return `
+              <div class="timeline-item">
+                <div class="timeline-title">${esc(c.title)}</div>
+                <div class="timeline-topics">
+                  ${ents.map(e => `<span class="timeline-tag">${esc(e.name)}</span>`).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `).join('');
+  }
+
+  // ─── Analytics View ───
+  function renderAnalytics() {
+    const container = document.getElementById('analytics-container');
+
+    // Top entities by frequency
+    const topEntities = [...state.entities].sort((a, b) => b.count - a.count).slice(0, 10);
+    const maxCount = topEntities[0]?.count || 1;
+
+    // Entity types distribution
+    const typeCounts = {};
+    state.entities.forEach(e => {
+      typeCounts[e.type] = (typeCounts[e.type] || 0) + 1;
+    });
+    const typeEntries = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+    const maxType = typeEntries[0]?.[1] || 1;
+
+    // Conversations per source
+    const sourceCounts = {};
+    state.conversations.forEach(c => {
+      sourceCounts[c.source || 'unknown'] = (sourceCounts[c.source || 'unknown'] || 0) + 1;
+    });
+
+    // Avg messages per conversation
+    const avgMsgs = state.conversations.length > 0
+      ? Math.round(state.conversations.reduce((s, c) => s + c.messages.length, 0) / state.conversations.length)
+      : 0;
+
+    // Most connected entities
+    const connectionCount = {};
+    state.links.forEach(l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      connectionCount[sid] = (connectionCount[sid] || 0) + 1;
+      connectionCount[tid] = (connectionCount[tid] || 0) + 1;
+    });
+    const mostConnected = Object.entries(connectionCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([id, count]) => ({ entity: state.entities.find(e => e.id === id), count }))
+      .filter(x => x.entity);
+    const maxConn = mostConnected[0]?.count || 1;
+
+    container.innerHTML = `
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <h3>Most Mentioned Entities</h3>
+          ${topEntities.map(e => `
+            <div class="bar-chart-item">
+              <div class="bar-label">${esc(e.name)}</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${(e.count/maxCount)*100}%;background:${COLORS[e.type]||COLORS.default}"></div>
+              </div>
+              <div class="bar-value">${e.count}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="analytics-card">
+          <h3>Most Connected (Hub Entities)</h3>
+          ${mostConnected.map(x => `
+            <div class="bar-chart-item">
+              <div class="bar-label">${esc(x.entity.name)}</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${(x.count/maxConn)*100}%;background:${COLORS[x.entity.type]||COLORS.default}"></div>
+              </div>
+              <div class="bar-value">${x.count}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="analytics-card">
+          <h3>Entity Types</h3>
+          ${typeEntries.map(([type, count]) => `
+            <div class="bar-chart-item">
+              <div class="bar-label">${esc(type)}</div>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${(count/maxType)*100}%;background:${COLORS[type]||COLORS.default}"></div>
+              </div>
+              <div class="bar-value">${count}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="analytics-card">
+          <h3>Overview</h3>
+          <div style="line-height: 2.2; font-size: 13px">
+            <strong>${state.conversations.length}</strong> conversations analyzed<br>
+            <strong>${state.entities.length}</strong> unique entities extracted<br>
+            <strong>${state.links.length}</strong> relationships discovered<br>
+            <strong>${state.clusters.length}</strong> topic clusters identified<br>
+            <strong>${avgMsgs}</strong> avg messages per conversation<br>
+            Sources: ${Object.entries(sourceCounts).map(([k,v]) => `${esc(k)} (${v})`).join(', ')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ─── View Switching ───
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const view = btn.dataset.view;
+      state.currentView = view;
+
+      document.getElementById('graph-container').style.display = view === 'graph' ? 'block' : 'none';
+      document.getElementById('timeline-container').className =
+        'timeline-container' + (view === 'timeline' ? ' active' : '');
+      document.getElementById('analytics-container').className =
+        'analytics-container' + (view === 'analytics' ? ' active' : '');
+
+      if (view === 'graph') renderGraph();
+    });
+  });
+
+  // ─── Search ───
+  document.getElementById('search-input').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    state.searchQuery = q;
+
+    if (!q) {
+      d3.select('#graph-svg').selectAll('circle').attr('opacity', 0.85);
+      d3.select('#graph-svg').selectAll('line').attr('stroke', 'rgba(78, 124, 255, 0.12)');
+      return;
+    }
+
+    const matches = new Set(state.entities.filter(e => e.name.includes(q)).map(e => e.id));
+
+    d3.select('#graph-svg').selectAll('circle')
+      .attr('opacity', d => matches.has(d.id) ? 1 : 0.08);
+    d3.select('#graph-svg').selectAll('line')
+      .attr('stroke-opacity', d => {
+        const sid = typeof d.source === 'object' ? d.source.id : d.source;
+        const tid = typeof d.target === 'object' ? d.target.id : d.target;
+        return matches.has(sid) || matches.has(tid) ? 0.5 : 0.02;
+      });
+  });
+
+  // ─── File Import ───
+  const fileInput = document.getElementById('file-input');
+
+  document.getElementById('upload-btn').addEventListener('click', () => fileInput.click());
+  document.getElementById('import-more-btn')?.addEventListener('click', () => fileInput.click());
+  document.getElementById('demo-btn').addEventListener('click', generateDemoData);
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        importData(data);
+      } catch (err) {
+        alert('Error parsing JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ─── Drag & Drop ───
+  const dropZone = document.getElementById('drop-zone');
+  const graphContainer = document.getElementById('graph-container');
+
+  ['dragenter', 'dragover'].forEach(evt => {
+    graphContainer.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragging');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(evt => {
+    graphContainer.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragging');
+    });
+  });
+
+  graphContainer.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        importData(data);
+      } catch (err) {
+        alert('Error parsing JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ─── Detail Panel Close ───
+  document.getElementById('detail-close').addEventListener('click', () => {
+    document.getElementById('detail-panel').classList.remove('open');
+  });
+
+  // ─── Resize Handler ───
+  window.addEventListener('resize', () => {
+    if (state.entities.length > 0 && state.currentView === 'graph') {
+      renderGraph();
+    }
+  });
+  </script>
+</body>
+</html>

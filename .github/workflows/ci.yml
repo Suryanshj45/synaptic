@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-cli:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Test CLI with sample data
+        run: |
+          python cli/synaptic.py analyze examples/sample-export.json
+          python cli/synaptic.py stats examples/sample-export.json
+          python cli/synaptic.py graph examples/sample-export.json --output test_graph.mermaid
+          python cli/synaptic.py export examples/sample-export.json --format json --output test_export.json
+          python cli/synaptic.py export examples/sample-export.json --format csv --output test_export.csv
+          python cli/synaptic.py export examples/sample-export.json --format mempalace --output test_palace.json
+
+      - name: Verify outputs exist
+        run: |
+          test -f test_graph.mermaid
+          test -f test_export.json
+          test -f test_export_entities.csv
+          test -f test_export_links.csv
+          test -f test_palace.json
+
+  validate-html:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check HTML file exists and is valid
+        run: |
+          test -f index.html
+          # Basic check that the file contains expected structure
+          grep -q "Synaptic" index.html
+          grep -q "d3.min.js" index.html
+          echo "HTML validation passed"

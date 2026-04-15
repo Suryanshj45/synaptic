@@ -1,0 +1,244 @@
+[
+  {
+    "title": "Building a React dashboard with D3.js visualizations",
+    "create_time": 1742054400,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["I want to build an interactive dashboard using React and D3.js for data visualization. The dashboard should show real-time metrics from our PostgreSQL database. We're using Next.js for the framework and Tailwind CSS for styling. Our team at Acme Corp needs this for the quarterly review."] },
+          "create_time": 1742054400
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Great choice! React and D3.js work really well together for dashboards. I'd recommend using D3 for the low-level SVG manipulation and React for state management. For real-time data from PostgreSQL, you could use Supabase's realtime subscriptions or set up a WebSocket connection with your Next.js API routes. Tailwind CSS will speed up your styling workflow significantly."] },
+          "create_time": 1742054500
+        }
+      },
+      "msg3": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["What about using Recharts instead of raw D3? Sarah from the design team prefers declarative APIs. Also, we need to deploy this on Vercel."] },
+          "create_time": 1742054600
+        }
+      },
+      "msg4": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Recharts is a great alternative — it's built on top of D3 but provides React-friendly declarative components. Combined with Tailwind CSS, your team will move faster. Vercel deployment with Next.js is seamless. I'd suggest structuring your project with separate components for each chart type and using SWR for data fetching."] },
+          "create_time": 1742054700
+        }
+      }
+    }
+  },
+  {
+    "title": "Machine Learning pipeline with Python and TensorFlow",
+    "create_time": 1742313600,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["I need to set up a machine learning pipeline using Python, scikit-learn, and TensorFlow. The data comes from our MongoDB database and needs preprocessing with Pandas and NumPy. We're building a recommendation engine for DataFlow Inc."] },
+          "create_time": 1742313600
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Let's design this pipeline step by step. First, use PyMongo to extract data from MongoDB into Pandas DataFrames. Then apply NumPy for numerical transformations. For the ML models, scikit-learn is perfect for classical approaches like gradient boosting, while TensorFlow handles the deep learning recommendation model. Use MLflow for experiment tracking."] },
+          "create_time": 1742313700
+        }
+      },
+      "msg3": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["We also want to deploy this on AWS using Docker containers. The team lead Mike wants everything tracked in MLflow and we need a CI/CD pipeline with GitHub Actions."] },
+          "create_time": 1742313800
+        }
+      },
+      "msg4": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Docker will containerize your pipeline for consistent environments. On AWS, use ECS or SageMaker for model serving. MLflow integrates nicely — use it for tracking experiments, packaging models, and serving predictions. Set up GitHub Actions for CI/CD with automated testing using pytest and model validation checks."] },
+          "create_time": 1742313900
+        }
+      }
+    }
+  },
+  {
+    "title": "Setting up Kubernetes on Google Cloud",
+    "create_time": 1742659200,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["How do I set up a Kubernetes cluster on Google Cloud Platform? We need it for our microservices architecture. Currently running Docker Compose locally. Services are written in Golang and Rust with an Express.js API gateway."] },
+          "create_time": 1742659200
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["GKE (Google Kubernetes Engine) is the easiest way to get started on GCP. Install gcloud CLI and kubectl. Your Docker Compose services need to be converted to Kubernetes manifests — Deployments, Services, ConfigMaps, and Ingress resources. Your Golang and Rust services will have tiny container images which is great for K8s. For the Express.js API gateway, consider Istio for service mesh."] },
+          "create_time": 1742659300
+        }
+      }
+    }
+  },
+  {
+    "title": "Building a RAG chatbot with LangChain and Claude",
+    "create_time": 1743177600,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["I want to build a RAG-based chatbot using LangChain with Anthropic's Claude as the LLM. The knowledge base is stored in PDF documents that need to be chunked and embedded into ChromaDB. We need this for our internal documentation at TechVault."] },
+          "create_time": 1743177600
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Perfect use case for RAG! Use LangChain's document loaders for PDFs, then split with RecursiveCharacterTextSplitter. For embeddings, use a local model like sentence-transformers to keep everything private. ChromaDB is great for local development. Claude via Anthropic's API will handle the generation step beautifully."] },
+          "create_time": 1743177700
+        }
+      },
+      "msg3": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["Can we add a persistent memory layer? I've been looking at MemPalace for conversation memory across sessions. Also want to expose this as an MCP server so it works with Claude Code and Cursor."] },
+          "create_time": 1743177800
+        }
+      },
+      "msg4": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["MemPalace is an excellent choice for persistent memory — it structures memories hierarchically (wings, rooms, drawers) and achieves top benchmark scores on LongMemEval. For MCP integration, you can build an MCP server that exposes your RAG pipeline as tools. This way Claude Code and Cursor can query your documentation directly."] },
+          "create_time": 1743177900
+        }
+      }
+    }
+  },
+  {
+    "title": "FastAPI REST API for e-commerce platform",
+    "create_time": 1743609600,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["Building a REST API with FastAPI for our e-commerce platform. Need endpoints for products, orders, and user authentication. The database is PostgreSQL with SQLAlchemy ORM. Frontend team led by Alex is using Vue.js and needs CORS configured. We also want Redis for caching."] },
+          "create_time": 1743609600
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["FastAPI is excellent for this. Use Pydantic models for request/response validation, SQLAlchemy 2.0 for async ORM queries, and Alembic for database migrations. For auth, implement JWT tokens. Add fastapi-cors middleware for the Vue.js frontend. Redis with aioredis handles caching beautifully — cache product listings and user sessions. Deploy behind Nginx reverse proxy on Docker."] },
+          "create_time": 1743609700
+        }
+      }
+    }
+  },
+  {
+    "title": "Rust WebAssembly game engine with physics",
+    "create_time": 1743868800,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["I'm building a 2D game engine in Rust that compiles to WebAssembly. Using WebGL for rendering through wasm-bindgen. Need physics simulation with rapier2d. My colleague Jordan at PixelForge Studios wants to integrate Three.js for the 3D rendering layer."] },
+          "create_time": 1743868800
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Rust + WASM is a powerful combo. Use wasm-bindgen for JS interop, web-sys for WebGL bindings. Structure your engine with an ECS (Entity Component System) pattern — the specs or bevy_ecs crate works well. Rapier2d is the go-to physics engine for Rust, and it's WASM-compatible. For 3D, have Rust handle game logic and physics while Three.js handles rendering on the JS side."] },
+          "create_time": 1743868900
+        }
+      }
+    }
+  },
+  {
+    "title": "CI/CD pipeline with GitHub Actions and Terraform",
+    "create_time": 1744041600,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["Need a comprehensive CI/CD pipeline using GitHub Actions for our monorepo. We have TypeScript frontend, Python backend, and Rust microservices. Deploy to AWS. DevOps lead Lisa wants Terraform for infrastructure as code with blue-green deployments."] },
+          "create_time": 1744041600
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["For a monorepo, use path filters in GitHub Actions to trigger specific workflows per service. Matrix builds for testing across versions. Cache npm, pip, and cargo dependencies aggressively. Terraform manages AWS infrastructure — use workspaces for staging/prod environments. Blue-green deployments work great with AWS ALB target group switching. Store Terraform state in S3 with DynamoDB locking."] },
+          "create_time": 1744041700
+        }
+      }
+    }
+  },
+  {
+    "title": "GraphQL API with Apollo Server and MongoDB",
+    "create_time": 1744128000,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["Switching our REST API to GraphQL using Apollo Server with TypeScript. Need complex nested queries for our social media platform. Lead architect Priya wants real-time subscriptions for the chat feature. Database is MongoDB with Mongoose."] },
+          "create_time": 1744128000
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Apollo Server with TypeScript provides great type safety. Use code-first schema with TypeGraphQL or Nexus. Implement DataLoader for batching to avoid N+1 queries. WebSocket subscriptions are built into Apollo — use graphql-ws transport. MongoDB change streams enable real-time data updates. Mongoose works well with GraphQL resolvers."] },
+          "create_time": 1744128100
+        }
+      }
+    }
+  },
+  {
+    "title": "Svelte collaborative whiteboard with Supabase",
+    "create_time": 1744300800,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["Building a collaborative whiteboard app with Svelte and Supabase. Need real-time cursor tracking and drawing sync. Product manager Tom at Creative Tools Co wants AI-powered shape recognition using TensorFlow.js for client-side inference."] },
+          "create_time": 1744300800
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Svelte's reactivity model is perfect for real-time apps. Use Supabase Realtime with broadcast channels for cursor positions and presence detection. Canvas API for the drawing layer. TensorFlow.js can run shape recognition models entirely in the browser — train a small CNN on common shapes and export to TFJS format. Use requestAnimationFrame for smooth rendering."] },
+          "create_time": 1744300900
+        }
+      }
+    }
+  },
+  {
+    "title": "Elixir Phoenix LiveView analytics dashboard",
+    "create_time": 1744387200,
+    "mapping": {
+      "msg1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": { "parts": ["Want to build a real-time analytics dashboard using Elixir's Phoenix LiveView. Data streams from our Kafka cluster into ClickHouse for analytics storage. Deploying on Fly.io. Need time-series charts and automatic alerting when metrics exceed thresholds."] },
+          "create_time": 1744387200
+        }
+      },
+      "msg2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": { "parts": ["Phoenix LiveView is perfect for real-time dashboards without writing JavaScript. Use Broadway for consuming Kafka messages in Elixir. GenServer processes aggregate metrics and push updates. ClickHouse's Elixir client handles fast analytical queries. For charts, use Chart.js via LiveView hooks. Fly.io has excellent Elixir support with built-in clustering via libcluster. Prometheus and Grafana for the alerting layer."] },
+          "create_time": 1744387300
+        }
+      }
+    }
+  }
+]

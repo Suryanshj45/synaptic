@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4e7cff"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="80" height="80" rx="16" fill="url(#bg)"/>
+  <!-- Neural network nodes -->
+  <circle cx="40" cy="25" r="5" fill="white" opacity="0.95" filter="url(#glow)"/>
+  <circle cx="25" cy="40" r="4" fill="white" opacity="0.8"/>
+  <circle cx="55" cy="40" r="4" fill="white" opacity="0.8"/>
+  <circle cx="30" cy="55" r="3.5" fill="white" opacity="0.7"/>
+  <circle cx="50" cy="55" r="3.5" fill="white" opacity="0.7"/>
+  <circle cx="40" cy="45" r="3" fill="white" opacity="0.6"/>
+  <!-- Connections -->
+  <line x1="40" y1="25" x2="25" y2="40" stroke="white" stroke-width="1.2" opacity="0.4"/>
+  <line x1="40" y1="25" x2="55" y2="40" stroke="white" stroke-width="1.2" opacity="0.4"/>
+  <line x1="25" y1="40" x2="30" y2="55" stroke="white" stroke-width="1" opacity="0.3"/>
+  <line x1="55" y1="40" x2="50" y2="55" stroke="white" stroke-width="1" opacity="0.3"/>
+  <line x1="25" y1="40" x2="40" y2="45" stroke="white" stroke-width="1" opacity="0.3"/>
+  <line x1="55" y1="40" x2="40" y2="45" stroke="white" stroke-width="1" opacity="0.3"/>
+  <line x1="40" y1="45" x2="30" y2="55" stroke="white" stroke-width="0.8" opacity="0.25"/>
+  <line x1="40" y1="45" x2="50" y2="55" stroke="white" stroke-width="0.8" opacity="0.25"/>
+  <line x1="30" y1="55" x2="50" y2="55" stroke="white" stroke-width="0.8" opacity="0.2"/>
+</svg>

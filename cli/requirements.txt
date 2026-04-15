@@ -1,0 +1,6 @@
+# Synaptic CLI — zero external dependencies required!
+# Python 3.8+ standard library only.
+#
+# Optional (for enhanced features):
+# sentence-transformers   # semantic search (local embeddings)
+# rich                    # prettier terminal output

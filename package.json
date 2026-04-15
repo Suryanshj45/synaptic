@@ -1,0 +1,39 @@
+{
+  "name": "synaptic",
+  "version": "1.0.0",
+  "description": "AI Conversation Intelligence — visualize your ChatGPT & Claude conversations as an interactive knowledge graph",
+  "main": "index.html",
+  "scripts": {
+    "start": "open index.html || xdg-open index.html",
+    "analyze": "python3 cli/synaptic.py analyze",
+    "test": "python3 -m pytest tests/ -v"
+  },
+  "keywords": [
+    "ai",
+    "chatgpt",
+    "claude",
+    "knowledge-graph",
+    "visualization",
+    "conversation-analysis",
+    "d3js",
+    "nlp",
+    "entity-extraction",
+    "mcp",
+    "mempalace",
+    "rag",
+    "llm",
+    "open-source",
+    "privacy",
+    "local-first"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/suryanshj45/synaptic"
+  },
+  "homepage": "https://github.com/suryanshj45/synaptic#readme",
+  "bugs": {
+    "url": "https://github.com/suryanshj45/synaptic/issues"
+  }
+}
