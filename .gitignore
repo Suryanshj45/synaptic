@@ -27,3 +27,13 @@ Thumbs.db
 # Virtual environments
 venv/
 .env/
+
+# Node
+node_modules/
+package-lock.json
+
+# Personal data — never commit user's real ChatGPT/Claude exports
+personal-merged.json
+personal-*.json
+*-conversations.json
+conversations-*.json

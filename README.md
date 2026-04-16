@@ -53,11 +53,11 @@ Synaptic gives you that control:
 
 ```bash
 # Option A: Just download and open
-curl -O https://raw.githubusercontent.com/suryanshj45/synaptic/main/index.html
+curl -O https://raw.githubusercontent.com/Suryanshj45/synaptic/main/index.html
 open index.html  # Click "Try Demo Data" to explore
 
 # Option B: Clone the repo
-git clone https://github.com/suryanshj45/synaptic.git
+git clone https://github.com/Suryanshj45/synaptic.git
 open synaptic/index.html
 ```
 
@@ -79,12 +79,103 @@ An interactive D3.js force-directed graph where nodes are **people**, **technolo
 ### Timeline View
 Your conversations laid out chronologically with auto-extracted topics. See exactly when you started learning React, when you switched to Rust, and whether you ever finished that Kubernetes migration.
 
-<p align="center"><img src="docs/screenshot-timeline.png" alt="Timeline View" width="700" /></p>
-
 ### Analytics View
 Bar charts and stats: most-discussed entities, most-connected hub topics, entity type breakdown, and conversation volume over time. Quantify your AI usage for the first time.
 
 <p align="center"><img src="docs/screenshot-analytics.png" alt="Analytics View" width="700" /></p>
+
+### Full-Text Search (⌘K)
+Hit **⌘K** (or **Ctrl+K**) to search every message across every conversation. Fuzzy matching tolerates typos, results are ranked by relevance with title boosting, and matching terms are highlighted right in the snippet. Click a result to jump straight to that message in the conversation viewer.
+
+Powered by [MiniSearch](https://github.com/lucaong/minisearch) (MIT, BM25, fuzzy + prefix). Falls back to substring search if you're fully offline.
+
+### Persistent Sessions
+Your imported conversations are saved locally in your browser (IndexedDB) and automatically restored on reload — no need to re-import every time. Hit **Clear** to wipe local storage when you want.
+
+### Loose Ends
+*"I asked about Kubernetes 23 times without ever finishing my setup."* — the tagline on this project finally has a feature behind it.
+
+The **Loose Ends** view surfaces four kinds of unresolved threads:
+
+- **Hanging Question** — conversations that end on a user question with no resolution signal anywhere.
+- **Follow-up Pending** — you said *"I'll try this and get back"* but never confirmed it worked.
+- **Repeated / Unresolved** — a topic discussed across 3+ conversations with zero *"it works / fixed / solved"* markers.
+- **Dormant Topic** — a previously-hot topic that went silent 60+ days ago without resolution.
+
+Click any item to jump to the conversation at the relevant message. Items are ranked by severity; a preview of the top few also appears in the sidebar.
+
+### Context Bundles
+The feature nobody else has. One click, and Synaptic builds a resumable prompt from your past conversations about any topic — ready to paste into a fresh ChatGPT, Claude, or Cursor chat.
+
+A bundle contains:
+
+- **What you were working on** — seed question from the earliest relevant conversation.
+- **Prior conversations** — title, date, question you asked, and the key takeaway from each.
+- **Decisions & recommendations** — extracted from the conversation text (phrases like *"I'd recommend"*, *"go with"*, *"switched to"*).
+- **Code shared so far** — up to three deduplicated code blocks from the thread.
+- **Related topics** — co-mentioned entities from the graph.
+- **Where you left off** — open questions and promises to report back.
+
+Generate from:
+
+- Entity detail panel → **⚡ Generate Context Bundle**
+- Any Loose End card → **⚡ Build context bundle**
+- Conversation viewer → **Bundle** button in the header
+
+Copy to clipboard or download as Markdown. All pure template extraction — no LLM, no API calls, runs in milliseconds.
+
+### Annotations (pin / tag / note / status)
+Every conversation and every entity gets a lightweight annotation layer:
+
+- **★ Pin** — surface important items in a dedicated sidebar section
+- **Status** — `open` / `in progress` / `resolved` / `abandoned` (shows as a colored pill in the timeline)
+- **#tags** — lowercase free-form tags, chip-style UI, typed inline
+- **Private note** — anything you want, scoped to that item, up to 2,000 chars
+
+Everything persists to IndexedDB automatically and rides along in backup exports. No server, no sync — just your local layer of meaning on top of the AI's output.
+
+### Secret Redaction (pre-import)
+Before a single byte of your export enters the graph, Synaptic scans for secrets using 14 regex patterns inspired by [gitleaks](https://github.com/gitleaks/gitleaks) and [detect-secrets](https://github.com/Yelp/detect-secrets):
+
+OpenAI / Anthropic / GitHub / GitLab / AWS / Google / Slack / Stripe / JWT / private-key blocks / emails / phone numbers / credit cards (Luhn-validated) / IPv4 addresses.
+
+A modal pops up listing every category, count, and obfuscated sample — you pick which to redact, and the import proceeds with those values replaced by `[REDACTED:TYPE]` tokens. Nothing leaves your browser. Nothing is logged.
+
+### Alias Clustering (merge "k8s" ↔ "Kubernetes")
+The entity extractor is aggressive by design, which means it catches both `k8s` and `Kubernetes` as separate nodes. Synaptic runs a fuzzy-matching pass (Levenshtein + abbreviation heuristics + substring detection) and surfaces merge suggestions in the sidebar:
+
+> **Kubernetes ↔ k8s** · 90% match · 47 + 12 · `[ Merge ] [ Not duplicates ]`
+
+Accepting merges entities cleanly (counts combine, links redirect, annotations carry over). Rejections are remembered so the same false positive never appears twice.
+
+### Backup Export / Import
+One-click full-snapshot export as a portable JSON file — conversations, entities, clusters, annotations, merge decisions, quality scores, everything. Drop that file back in on another device, another browser, after clearing cache, whenever. This is your cross-device sync, with zero servers involved.
+
+### Quality Scoring
+Every conversation gets a 0–100 usefulness score based on depth (user + assistant turn counts), code presence, resolution signals, assistant reasoning length, and entity richness. Shown as a colored bar in the timeline and entity mentions list. High-quality conversations float visually above the noise.
+
+### Déjà Vu Detector
+Open a conversation and Synaptic instantly checks whether you've touched the same entity cluster in earlier chats. If there's overlap, a subtle banner appears at the top of the conversation viewer:
+
+> *∞ You've touched these topics in 4 earlier conversations.* → **Show me**
+
+Click to expand the list, click any item to jump there. Useful for catching "oh I literally asked about this in March and forgot."
+
+### Your AI Year
+A narrative view — think Spotify Wrapped for your AI brain. Synaptic groups conversations by month and auto-writes prose:
+
+> *March 2025 — **Kubernetes** dominated — 23 mentions across 9 conversations. New on your radar: Helm, Ingress. Quietly dropped: Redis. Avg quality: 68/100 (medium).*
+
+No LLM. No API calls. Pure template over signal. Perfect for reflecting on a year of thinking-with-AI.
+
+### Synaptic Mirror ✨
+Click the **✨ Mirror** button in the toolbar for a shareable, personal reveal of how you use AI.
+
+Synaptic computes your **archetype** — are you The Midnight Debugger, The Patient Perfectionist, The Power User, The Architect, or The Student? — from message length, time-of-day patterns, completion rate, politeness, and question ratio. It surfaces your personal **tells** (the filler words you lean on — "actually", "basically", "just"), your knowledge graph growing as a **time-lapse animation**, and a **Hallucination Hall of Fame** that flags AI responses full of hedge phrases like *"as of my training data"* or *"please verify with official docs"*.
+
+<p align="center"><img src="docs/screenshot-mirror.png" alt="Synaptic Mirror — archetype, stats, and graph walk" width="700" /></p>
+
+One-click **Download as PNG** produces a crisp shareable card. Nothing ever leaves your browser. It's Spotify Wrapped for your brain — rendered entirely by your own device from your own data.
 
 ## 💻 CLI
 
@@ -163,9 +254,24 @@ Your AI conversations contain sensitive information — project plans, code, per
 
 ## 🗺️ Roadmap
 
+- [x] Full-text search across all messages (⌘K)
+- [x] Persistent local sessions via IndexedDB
+- [x] Loose Ends detector — surface unresolved threads and repeated questions
+- [x] Context Bundles — export past discussion as a resumable prompt
+- [x] Annotations layer — pin, tag, note, mark status on entities + conversations
+- [x] Secret-redaction pre-scan — scrub API keys / emails / phones before ingestion
+- [x] Alias clustering — merge near-duplicate entities (k8s ↔ Kubernetes)
+- [x] Backup export / import — single-file JSON snapshots for cross-device sync
+- [x] Quality scoring — rank conversations by depth, resolution, and reasoning
+- [x] Déjà vu detector — spot when a new chat overlaps past discussions
+- [x] "Your AI Year" — auto-generated monthly narrative of your knowledge journey
+- [x] Synaptic Mirror — personal archetype, quirks, graph time-lapse, hallucination flags, PNG export
+- [ ] Incremental import with diff view
+- [ ] Multi-file merge — combine exports from different AI assistants
 - [ ] Gemini / Copilot / Grok import support
 - [ ] MCP Server — use Synaptic as a tool inside Claude Code / Cursor
-- [ ] Multi-file merge — combine exports from different AI assistants
+- [ ] Sigma.js render at scale (500+ nodes)
+- [ ] compromise.cool / transformers.js NER (opt-in, lazy-loaded)
 - [ ] Semantic search with local embeddings
 - [ ] Time-diff view — compare your knowledge graph across months
 - [ ] PDF/PNG export for sharing
@@ -179,7 +285,7 @@ Contributions welcome! The codebase is intentionally simple:
 - **Tests** — `python tests/generate_test_data.py` then `python cli/synaptic.py analyze`
 
 ```bash
-git clone https://github.com/suryanshj45/synaptic.git
+git clone https://github.com/Suryanshj45/synaptic.git
 cd synaptic
 
 # Test everything works

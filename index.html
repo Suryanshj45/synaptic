@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Synaptic — AI Conversation Intelligence</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <!-- MiniSearch: MIT licensed, ~30KB gz, in-browser BM25 full-text search.
+       Loaded from CDN; we fall back to substring search if unavailable (offline). -->
+  <script src="https://cdn.jsdelivr.net/npm/minisearch@7.1.2/dist/umd/index.js"></script>
   <style>
     :root {
       --bg-primary: #0a0a0f;
@@ -495,6 +498,1253 @@
 
     .analytics-container.active { display: block; }
 
+    /* ─── Loose Ends view ─── */
+    .loose-ends-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+      display: none;
+    }
+    .loose-ends-container.active { display: block; }
+
+    .le-header {
+      margin-bottom: 20px;
+    }
+    .le-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, var(--accent-yellow), var(--accent-orange));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .le-header p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 640px;
+    }
+
+    .le-filter-row {
+      display: flex;
+      gap: 6px;
+      margin: 18px 0 12px;
+      flex-wrap: wrap;
+    }
+    .le-filter {
+      font-size: 11px;
+      padding: 5px 11px;
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .le-filter:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .le-filter.active {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+
+    .le-empty {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+    .le-empty-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+    .le-empty-title {
+      font-size: 15px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .le-empty-subtitle { font-size: 12px; }
+
+    .le-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .le-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .le-card:hover {
+      background: var(--bg-hover);
+      transform: translateX(2px);
+    }
+    .le-card.type-hanging-question { border-left-color: var(--accent-pink); }
+    .le-card.type-follow-up-promise { border-left-color: var(--accent-yellow); }
+    .le-card.type-repeated-unresolved { border-left-color: var(--accent-orange); }
+    .le-card.type-dormant { border-left-color: var(--accent-cyan); }
+
+    .le-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .le-type-badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .le-card.type-hanging-question .le-type-badge { color: var(--accent-pink); }
+    .le-card.type-follow-up-promise .le-type-badge { color: var(--accent-yellow); }
+    .le-card.type-repeated-unresolved .le-type-badge { color: var(--accent-orange); }
+    .le-card.type-dormant .le-type-badge { color: var(--accent-cyan); }
+
+    .le-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .le-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .le-snippet {
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .le-why {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-style: italic;
+    }
+    .le-severity-bar {
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-orange), var(--accent-pink));
+      border-radius: 1px;
+      margin-top: 10px;
+      opacity: 0.6;
+    }
+
+    /* Sidebar Loose Ends preview */
+    .loose-ends-section {
+      padding: 0 24px 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    .le-preview-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-secondary);
+      transition: background 0.12s;
+    }
+    .le-preview-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .le-preview-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .le-preview-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .le-sidebar-see-all {
+      font-size: 11px;
+      color: var(--accent-blue);
+      cursor: pointer;
+      padding: 6px 8px;
+      margin-top: 4px;
+    }
+    .le-sidebar-see-all:hover { text-decoration: underline; }
+
+    /* ─── Annotation panel (shared entity + conv) ─── */
+    .annotation-panel {
+      margin-bottom: 14px;
+    }
+    .annotation-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-secondary);
+      transition: all 0.12s;
+      user-select: none;
+      flex-wrap: wrap;
+    }
+    .annotation-summary:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+    }
+    .annotation-summary.has-content {
+      background: var(--bg-card);
+    }
+    .annotation-summary-pill {
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      background: var(--bg-card);
+    }
+    .annotation-summary-pill.pin {
+      background: var(--accent-yellow);
+      color: #1a1a2e;
+      font-weight: 600;
+    }
+    .annotation-summary-caret {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.15s;
+    }
+    .annotation-panel.open .annotation-summary-caret {
+      transform: rotate(180deg);
+    }
+    .annotation-body {
+      display: none;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 10px 12px;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: -8px;
+    }
+    .annotation-panel.open .annotation-summary {
+      border-radius: 8px 8px 0 0;
+    }
+    .annotation-panel.open .annotation-body {
+      display: flex;
+    }
+    .ann-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ann-pin {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .ann-pin:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .ann-pin.pinned {
+      background: var(--accent-yellow);
+      color: #1a1a2e;
+      border-color: var(--accent-yellow);
+      font-weight: 600;
+    }
+    .ann-status {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .ann-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .ann-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(78, 124, 255, 0.15);
+      color: var(--accent-blue);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+    .ann-tag-x {
+      cursor: pointer;
+      opacity: 0.7;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .ann-tag-x:hover { opacity: 1; }
+    .ann-tag-input {
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--text-secondary);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      outline: none;
+      width: 70px;
+    }
+    .ann-tag-input:focus {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+    }
+    .ann-note {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 48px;
+      max-height: 200px;
+      outline: none;
+    }
+    .ann-note:focus { border-color: var(--accent-blue); }
+
+    /* Inline status pill used on items */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--bg-secondary);
+    }
+
+    /* ─── Sidebar extras (pinned, aliases) ─── */
+    .pinned-section,
+    .alias-section {
+      padding: 0 24px 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .alias-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .alias-pair {
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: var(--text-primary);
+    }
+    .alias-sep { margin: 0 6px; color: var(--text-muted); }
+    .alias-meta { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+    .alias-actions { display: flex; gap: 6px; }
+    .alias-btn {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .alias-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .alias-btn.alias-merge {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+    .alias-btn.alias-merge:hover { filter: brightness(1.1); }
+
+    /* ─── Synaptic Mirror ─── */
+    /* Mirror uses a custom overlay layout because its content is tall.
+       Default overlay has padding-top: 10vh which would clip the footer
+       off-screen with a tall modal. We override with a small padding and
+       let the overlay scroll as a safety net on short viewports. */
+    #mirror-modal {
+      padding: 3vh 2vw;
+      overflow-y: auto;
+    }
+    #mirror-modal .modal {
+      width: min(900px, 96vw);
+      max-height: 94vh;
+      background: linear-gradient(145deg, #0e1330 0%, #1a0e30 60%, #230a2e 100%);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .mirror-body {
+      overflow-y: auto;
+      padding: 40px 44px 30px;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .mirror-hero {
+      text-align: center;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    .mirror-eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+      font-weight: 700;
+      margin-bottom: 10px;
+      opacity: 0.85;
+    }
+    .mirror-headline {
+      font-size: 44px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #4e7cff 0%, #8b5cf6 40%, #ec4899 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.08;
+      margin-bottom: 14px;
+      letter-spacing: -0.02em;
+    }
+    .mirror-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 540px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    .mirror-archetype {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      border-radius: 100px;
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    .mirror-archetype-glyph {
+      font-size: 16px;
+    }
+
+    .mirror-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .mirror-stat {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 16px 14px;
+      transition: all 0.18s;
+    }
+    .mirror-stat:hover {
+      background: rgba(255,255,255,0.07);
+      transform: translateY(-2px);
+    }
+    .mirror-stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .mirror-stat-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .mirror-stat-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .mirror-stat.highlight {
+      background: linear-gradient(135deg, rgba(78, 124, 255, 0.15), rgba(139, 92, 246, 0.1));
+      border-color: rgba(78, 124, 255, 0.4);
+    }
+    .mirror-stat.highlight .mirror-stat-value {
+      background: linear-gradient(135deg, #4e7cff, #8b5cf6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .mirror-section {
+      margin-bottom: 32px;
+    }
+    .mirror-section-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent-purple);
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mirror-section-title::before {
+      content: "";
+      width: 4px; height: 14px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #4e7cff, #8b5cf6);
+    }
+
+    .mirror-fillers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .mirror-filler {
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: rgba(139, 92, 246, 0.14);
+      border: 1px solid rgba(139, 92, 246, 0.28);
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .mirror-filler-count {
+      color: var(--accent-purple);
+      font-weight: 700;
+      margin-left: 4px;
+    }
+
+    .mirror-halluc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mirror-halluc-item {
+      padding: 14px 16px;
+      background: rgba(247, 37, 133, 0.08);
+      border: 1px solid rgba(247, 37, 133, 0.25);
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .mirror-halluc-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--accent-pink);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .mirror-halluc-quote {
+      font-style: italic;
+      color: var(--text-secondary);
+      border-left: 2px solid var(--accent-pink);
+      padding-left: 10px;
+      margin-top: 6px;
+    }
+    .mirror-halluc-reasons {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .mirror-halluc-tag {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 8px;
+      background: rgba(247, 37, 133, 0.2);
+      color: var(--accent-pink);
+      font-weight: 600;
+    }
+
+    .mirror-walk {
+      position: relative;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px 12px 16px;
+      height: 260px;
+      overflow: hidden;
+    }
+    .mirror-walk svg { display: block; width: 100%; height: 100%; }
+    .mirror-walk-caption {
+      position: absolute;
+      bottom: 10px;
+      left: 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mirror-footer {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 16px 26px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.3);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .mirror-btn {
+      font-size: 13px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      transition: all 0.14s;
+    }
+    .mirror-btn:hover { background: rgba(255,255,255,0.12); }
+    .mirror-btn.primary {
+      background: linear-gradient(135deg, #4e7cff, #8b5cf6);
+      border-color: transparent;
+      font-weight: 600;
+    }
+    .mirror-btn.primary:hover { filter: brightness(1.15); }
+    .mirror-btn.copied {
+      background: #06d6a0;
+      color: #0a2e1e;
+    }
+    .mirror-footer-hint {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .mirror-toolbar-btn {
+      background: linear-gradient(135deg, rgba(78, 124, 255, 0.15), rgba(139, 92, 246, 0.15));
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      color: var(--text-primary);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      transition: all 0.14s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mirror-toolbar-btn:hover {
+      filter: brightness(1.2);
+      border-color: var(--accent-purple);
+    }
+    .mirror-toolbar-btn .sparkle {
+      animation: sparkle-pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes sparkle-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.18); }
+    }
+
+    /* ─── Hallucination inline badge in conversation viewer ─── */
+    .halluc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      margin-left: 6px;
+      border-radius: 10px;
+      background: rgba(247, 37, 133, 0.14);
+      border: 1px solid rgba(247, 37, 133, 0.32);
+      color: var(--accent-pink);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: help;
+      vertical-align: middle;
+    }
+    .halluc-badge.level-low { opacity: 0.75; }
+
+    /* ─── Help Modal ─── */
+    #help-modal .modal { width: min(720px, 94vw); max-height: 86vh; }
+    .help-header {
+      padding: 22px 26px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .help-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-primary);
+    }
+    .help-title-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      color: white;
+      font-weight: 700;
+    }
+    .help-subtitle {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 560px;
+    }
+    .help-body {
+      padding: 10px 26px 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .help-group {
+      margin-bottom: 18px;
+    }
+    .help-group-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .help-item {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+    }
+    .help-item:hover { background: var(--bg-secondary); }
+    .help-item-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .help-item-label kbd {
+      font-size: 10px;
+      padding: 1px 5px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+    }
+    .help-item-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+    .help-footer {
+      padding: 12px 26px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .help-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+    .help-hint kbd {
+      padding: 1px 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 10px;
+    }
+    .help-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 4px;
+      transition: all 0.12s;
+    }
+    .help-btn:hover {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+
+    /* First-time hint bubble */
+    .first-time-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-card);
+      border: 1px solid var(--accent-blue);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 13px;
+      color: var(--text-primary);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      display: none;
+      z-index: 1500;
+      max-width: 520px;
+      text-align: center;
+    }
+    .first-time-hint.show { display: block; animation: fadeInUp 0.4s ease-out; }
+    .first-time-hint-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    .first-time-hint button {
+      font-size: 12px;
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+    .first-time-hint button.primary {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: white;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translate(-50%, 20px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    /* ─── Secret Redaction Modal ─── */
+    .secret-modal .modal {
+      width: min(640px, 94vw);
+      max-height: 80vh;
+    }
+    .secret-header {
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+    .secret-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--accent-pink);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .secret-title-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(247, 37, 133, 0.15);
+      color: var(--accent-pink);
+      font-weight: 700;
+    }
+    .secret-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      max-width: 540px;
+    }
+    .secret-body { padding: 12px 22px 16px; overflow-y: auto; flex: 1; }
+    .secret-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .secret-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent-blue);
+      margin-top: 3px;
+    }
+    .secret-item-label {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .secret-item-count {
+      font-size: 11px;
+      color: var(--accent-pink);
+      font-weight: 600;
+    }
+    .secret-item-sample {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      word-break: break-all;
+    }
+    .secret-toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 22px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-secondary);
+      align-items: center;
+    }
+    .secret-summary {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-right: auto;
+    }
+
+    /* ─── Déjà vu banner ─── */
+    .dejavu-banner {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(78, 124, 255, 0.12));
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .dejavu-banner:hover { background: rgba(139, 92, 246, 0.2); }
+    .dejavu-icon { font-size: 14px; color: var(--accent-purple); }
+    .dejavu-list {
+      margin: 6px 0 14px;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .dejavu-item {
+      padding: 6px 0;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    .dejavu-item:last-child { border-bottom: none; }
+    .dejavu-item:hover { color: var(--text-primary); }
+    .dejavu-item-date { color: var(--text-muted); font-size: 11px; margin-right: 8px; }
+
+    /* ─── Quality bar ─── */
+    .quality-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .quality-bar-track {
+      width: 48px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--bg-card);
+      overflow: hidden;
+    }
+    .quality-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    /* ─── Your AI Year view ─── */
+    .year-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+      display: none;
+    }
+    .year-container.active { display: block; }
+    .year-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple), var(--accent-pink));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .year-header p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      max-width: 640px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .year-month {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 20px;
+    }
+    .year-month-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .year-month-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .year-month-body {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    .year-month-topics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .year-topic-chip {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+    .year-topic-chip.top {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    /* ─── Backup buttons (header area) ─── */
+    .backup-menu {
+      position: relative;
+      display: inline-block;
+    }
+    .backup-dropdown {
+      position: absolute;
+      right: 0;
+      top: 110%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      padding: 6px;
+      display: none;
+      z-index: 50;
+      min-width: 170px;
+    }
+    .backup-dropdown.open { display: block; }
+    .backup-dropdown button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .backup-dropdown button:hover { background: var(--bg-hover); }
+    .backup-dropdown .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 6px;
+    }
+
+    /* ─── Context Bundle Modal ─── */
+    .bundle-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+    .bundle-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bundle-title-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .bundle-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .bundle-toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 22px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .bundle-stats {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+    .bundle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .bundle-btn:hover { background: var(--bg-hover); border-color: var(--accent-blue); }
+    .bundle-btn.primary {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+    .bundle-btn.primary:hover { filter: brightness(1.1); }
+    .bundle-btn.copied {
+      background: var(--accent-cyan);
+      color: white;
+      border-color: var(--accent-cyan);
+    }
+
+    .bundle-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 22px;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: var(--bg-primary);
+    }
+    .bundle-body h1, .bundle-body h2, .bundle-body h3 {
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* Entity panel Bundle button */
+    .bundle-cta-row {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0 16px;
+      flex-wrap: wrap;
+    }
+
+    /* Loose-end card inline Bundle button */
+    .le-card-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 6px;
+    }
+    .le-action-btn {
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .le-action-btn:hover {
+      background: var(--accent-blue);
+      color: white;
+      border-color: var(--accent-blue);
+    }
+
+    /* View-btn badge */
+    .view-btn-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 16px;
+      padding: 0 5px;
+      margin-left: 6px;
+      border-radius: 8px;
+      background: var(--accent-pink);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      vertical-align: middle;
+    }
+    .view-btn.active .view-btn-badge { background: rgba(255,255,255,0.25); }
+
     .analytics-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -589,6 +1839,259 @@
       .sidebar { width: 260px; min-width: 260px; }
       .detail-panel { width: 280px; min-width: 280px; }
     }
+
+    /* ─── Modal overlay (⌘K search + conversation viewer) ─── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 5, 12, 0.72);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 10vh;
+    }
+    .modal-overlay.open { display: flex; animation: fadeIn 0.15s ease forwards; }
+
+    .modal {
+      width: min(720px, 92vw);
+      max-height: 78vh;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal.modal-wide { width: min(920px, 94vw); max-height: 82vh; }
+
+    .modal-search-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-search-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 16px;
+    }
+    .modal-search-box input::placeholder { color: var(--text-muted); }
+    .modal-search-icon {
+      color: var(--text-muted);
+      font-size: 14px;
+      width: 18px;
+      text-align: center;
+    }
+    .modal-search-kbd {
+      color: var(--text-muted);
+      font-size: 11px;
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-secondary);
+    }
+
+    .search-results {
+      overflow-y: auto;
+      flex: 1;
+    }
+    .search-result {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .search-result:hover, .search-result.active {
+      background: var(--bg-hover);
+    }
+    .search-result-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .search-result-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .search-result-role-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .search-result-role-badge.role-user { color: var(--accent-cyan); }
+    .search-result-role-badge.role-assistant { color: var(--accent-purple); }
+    .search-result-snippet {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .search-result-snippet mark {
+      background: rgba(255, 209, 102, 0.25);
+      color: var(--accent-yellow);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .search-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .search-footer {
+      display: flex;
+      gap: 14px;
+      padding: 10px 18px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .search-footer kbd {
+      font-family: inherit;
+      font-size: 10px;
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-right: 4px;
+      background: var(--bg-secondary);
+    }
+
+    /* ─── Conversation viewer ─── */
+    .conv-viewer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .conv-viewer-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .conv-viewer-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .conv-viewer-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+    .conv-viewer-close:hover { color: var(--text-primary); }
+    .conv-viewer-body {
+      overflow-y: auto;
+      padding: 16px 20px;
+      flex: 1;
+    }
+    .conv-message {
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+    .conv-message.role-user { border-left: 3px solid var(--accent-cyan); }
+    .conv-message.role-assistant { border-left: 3px solid var(--accent-purple); }
+    .conv-message.highlight { background: rgba(255, 209, 102, 0.07); border-color: var(--accent-yellow); }
+    .conv-message-role {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .conv-message-content {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .conv-message-content mark {
+      background: rgba(255, 209, 102, 0.25);
+      color: var(--accent-yellow);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    /* ─── Restore-session toast ─── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: none;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      z-index: 1500;
+    }
+    .toast.show { display: flex; animation: fadeIn 0.25s ease forwards; }
+    .toast-link {
+      color: var(--accent-blue);
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .toast-link:hover { text-decoration: underline; }
+
+    /* ─── Clickable conversation item ─── */
+    .mention-item { cursor: pointer; }
+    .mention-item:hover { color: var(--accent-blue); }
+
+    /* ─── ⌘K toolbar button ─── */
+    .search-cta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.12s;
+    }
+    .search-cta:hover { background: var(--bg-hover); color: var(--text-primary); }
   </style>
 </head>
 <body>
@@ -621,18 +2124,44 @@
       <div class="topics-section" id="topics-list">
         <div class="section-title">Topic Clusters</div>
       </div>
+
+      <div class="loose-ends-section" id="loose-ends-sidebar" style="display:none"></div>
+      <div class="pinned-section" id="pinned-sidebar" style="display:none"></div>
+      <div class="alias-section" id="alias-sidebar" style="display:none"></div>
     </div>
 
     <!-- Main Area -->
     <div class="main-area">
       <div class="toolbar" id="toolbar" style="display:none">
-        <input type="text" class="search-box" placeholder="Search entities, topics, conversations..." id="search-input" />
+        <input type="text" class="search-box" placeholder="Filter graph by entity name..." id="search-input" />
+        <button class="search-cta" id="open-search-btn" title="Search all conversations">
+          <span>Search chats</span>
+          <span class="modal-search-kbd" id="search-kbd-hint">⌘K</span>
+        </button>
         <div class="view-toggle">
           <button class="view-btn active" data-view="graph">Graph</button>
           <button class="view-btn" data-view="timeline">Timeline</button>
           <button class="view-btn" data-view="analytics">Analytics</button>
+          <button class="view-btn" data-view="loose-ends">
+            Loose Ends<span class="view-btn-badge" id="loose-ends-count" style="display:none">0</span>
+          </button>
+          <button class="view-btn" data-view="year">Your AI Year</button>
         </div>
         <button class="btn btn-secondary" id="import-more-btn" style="font-size:12px">+ Import</button>
+        <button class="mirror-toolbar-btn" id="mirror-btn" title="See your AI personality mirror">
+          <span class="sparkle">✨</span> Mirror
+        </button>
+        <button class="help-btn" id="help-btn" title="What can Synaptic do? (press ? anytime)">?</button>
+        <div class="backup-menu">
+          <button class="btn btn-secondary" id="backup-btn" style="font-size:12px" title="Backup / restore">Backup ▾</button>
+          <div class="backup-dropdown" id="backup-dropdown">
+            <button id="backup-export-btn">Export snapshot…</button>
+            <button id="backup-import-btn">Import snapshot…</button>
+            <div class="divider"></div>
+            <button id="clear-data-btn" style="color:var(--accent-pink)">Clear all data</button>
+          </div>
+        </div>
+        <input type="file" id="backup-file-input" accept="application/json,.json" style="display:none" />
       </div>
 
       <!-- Graph View -->
@@ -642,7 +2171,8 @@
           <div class="drop-title">Drop your AI conversations here</div>
           <div class="drop-subtitle">
             Import ChatGPT or Claude exports to visualize<br/>
-            your conversations as an interactive knowledge graph
+            your conversations as an interactive knowledge graph<br/>
+            <span style="opacity:0.7;font-size:11px">ChatGPT now splits exports into multiple files — drop them all at once.</span>
           </div>
           <div class="drop-actions">
             <button class="btn btn-primary" id="upload-btn">Import JSON Export</button>
@@ -661,6 +2191,12 @@
       <!-- Analytics View -->
       <div class="analytics-container" id="analytics-container"></div>
 
+      <!-- Loose Ends View -->
+      <div class="loose-ends-container" id="loose-ends-container"></div>
+
+      <!-- Your AI Year View -->
+      <div class="year-container" id="year-container"></div>
+
       <!-- Tooltip -->
       <div class="tooltip" id="tooltip">
         <div class="tooltip-title" id="tooltip-title"></div>
@@ -676,6 +2212,128 @@
         <div class="detail-type" id="detail-type"></div>
       </div>
       <div id="detail-content"></div>
+    </div>
+  </div>
+
+  <!-- ⌘K Search Modal -->
+  <div class="modal-overlay" id="search-modal">
+    <div class="modal modal-wide" role="dialog" aria-label="Search conversations">
+      <div class="modal-search-box">
+        <span class="modal-search-icon">⌕</span>
+        <input type="text" id="modal-search-input" placeholder="Search your AI conversations..." autocomplete="off" spellcheck="false" />
+        <span class="modal-search-kbd">Esc</span>
+      </div>
+      <div class="search-results" id="search-results"></div>
+      <div class="search-footer">
+        <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+        <span><kbd>↵</kbd> open conversation</span>
+        <span><kbd>Esc</kbd> close</span>
+        <span id="search-engine-status" style="margin-left:auto"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conversation Viewer Modal -->
+  <div class="modal-overlay" id="conv-modal">
+    <div class="modal modal-wide" role="dialog" aria-label="Conversation viewer">
+      <div class="conv-viewer-header">
+        <div style="flex:1">
+          <div class="conv-viewer-title" id="conv-viewer-title"></div>
+          <div class="conv-viewer-meta" id="conv-viewer-meta"></div>
+        </div>
+        <button class="bundle-btn" id="conv-bundle-btn" title="Build a prompt summarizing this conversation — paste it into a new chat to continue">📋 Resume prompt</button>
+        <button class="conv-viewer-close" id="conv-viewer-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="conv-viewer-body" id="conv-viewer-body"></div>
+    </div>
+  </div>
+
+  <!-- Context Bundle Modal -->
+  <div class="modal-overlay" id="bundle-modal">
+    <div class="modal modal-wide" role="dialog" aria-label="Context bundle">
+      <div class="bundle-header">
+        <div class="bundle-title">
+          <span class="bundle-title-icon">B</span>
+          <span id="bundle-title-text">Context Bundle</span>
+        </div>
+        <div class="bundle-subtitle" id="bundle-subtitle-text"></div>
+      </div>
+      <div class="bundle-toolbar">
+        <button class="bundle-btn primary" id="bundle-copy-btn">Copy to clipboard</button>
+        <button class="bundle-btn" id="bundle-download-btn">Download .md</button>
+        <span class="bundle-stats" id="bundle-stats"></span>
+        <button class="bundle-btn" id="bundle-close-btn">Close</button>
+      </div>
+      <div class="bundle-body" id="bundle-body"></div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div class="modal-overlay" id="help-modal">
+    <div class="modal modal-wide" role="dialog" aria-label="Synaptic help">
+      <div class="help-header">
+        <div class="help-title">
+          <span class="help-title-icon">?</span>
+          <span>What Synaptic can do for you</span>
+        </div>
+        <div class="help-subtitle">Everything here runs 100% in your browser. Nothing is ever uploaded. Scroll for the full guide — or just try things.</div>
+      </div>
+      <div class="help-body" id="help-body"></div>
+      <div class="help-footer">
+        <button class="bundle-btn primary" id="help-close-btn">Got it</button>
+        <span class="help-hint">Press <kbd>?</kbd> anytime to reopen this.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Synaptic Mirror Modal -->
+  <div class="modal-overlay" id="mirror-modal">
+    <div class="modal" role="dialog" aria-label="Your Synaptic Mirror">
+      <div class="mirror-body" id="mirror-body"></div>
+      <div class="mirror-footer">
+        <button class="mirror-btn primary" id="mirror-download-btn">Download as PNG</button>
+        <button class="mirror-btn" id="mirror-copy-btn">Copy summary</button>
+        <button class="mirror-btn" id="mirror-close-btn">Close</button>
+        <span class="mirror-footer-hint">Everything computed locally. Share with pride.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secret Redaction Modal -->
+  <div class="modal-overlay secret-modal" id="secret-modal">
+    <div class="modal" role="dialog" aria-label="Secret redaction">
+      <div class="secret-header">
+        <div class="secret-title">
+          <span class="secret-title-icon">!</span>
+          <span>Potential secrets detected</span>
+        </div>
+        <div class="secret-subtitle" id="secret-subtitle-text">
+          Synaptic scanned your export and found values that look like secrets or personal info.
+          Choose which to redact before they enter your knowledge graph. Nothing ever leaves your browser.
+        </div>
+      </div>
+      <div class="secret-body" id="secret-body"></div>
+      <div class="secret-toolbar">
+        <span class="secret-summary" id="secret-summary"></span>
+        <button class="bundle-btn" id="secret-cancel-btn">Cancel import</button>
+        <button class="bundle-btn" id="secret-keep-btn">Keep as-is</button>
+        <button class="bundle-btn primary" id="secret-redact-btn">Redact selected</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Restore session toast -->
+  <div class="toast" id="restore-toast">
+    <span id="restore-toast-text"></span>
+    <span class="toast-link" id="restore-toast-dismiss">Dismiss</span>
+  </div>
+
+  <!-- First-time hint (shown once after demo/first import) -->
+  <div class="first-time-hint" id="first-time-hint">
+    <div><strong>Welcome in.</strong> Click any node, press <kbd>⌘K</kbd> to search, or hit <kbd>?</kbd> to see everything Synaptic can do.</div>
+    <div class="first-time-hint-actions">
+      <button class="primary" id="first-time-hint-show">Show me</button>
+      <button id="first-time-hint-dismiss">Got it</button>
     </div>
   </div>
 
@@ -712,8 +2370,273 @@
     selectedEntity: null,
     currentView: 'graph',
     searchQuery: '',
-    simulation: null
+    simulation: null,
+    searchIndex: null,      // MiniSearch instance (or null if fallback)
+    importedAt: null,       // ISO timestamp of last import
+    looseEnds: [],          // Detected unresolved threads / pending follow-ups
+    looseEndsFilter: 'all', // 'all' | 'hanging-question' | 'follow-up-promise' | 'repeated-unresolved' | 'dormant'
+    annotations: { conversations: {}, entities: {} }, // per-item: { pinned, tags[], note, status, updatedAt }
+    aliases: {},            // entityId -> canonical entityId (after user-approved merges)
+    aliasRejections: {},    // "a|b" -> true (user said "not a duplicate")
+    qualityScores: {},      // convIdx -> 0..100
+    yearNarrative: null     // cached monthly narrative, invalidated on import
   };
+
+  const STORE_VERSION = 2;   // v2 adds annotations, aliases, qualityScores
+  const STORE_KEY = 'latest';
+
+  // ─── Tiny IndexedDB wrapper (no dependency) ───
+  //  We use a single object store 'snapshots' keyed by id ('latest').
+  //  Storing native objects (Dates, nested arrays) — IDB handles this via
+  //  the structured clone algorithm.
+  const DB_NAME = 'synaptic';
+  const STORE_NAME = 'snapshots';
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbPut(obj) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).put(obj);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
+
+  async function idbGet(id) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(id);
+      req.onsuccess = () => { db.close(); resolve(req.result || null); };
+      req.onerror = () => { db.close(); reject(req.error); };
+    });
+  }
+
+  async function idbDelete(id) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(id);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
+
+  async function persistSnapshot() {
+    if (!state.conversations.length) return;
+    // Build a clean snapshot that strips D3-mutated fields (x, y, vx, vy, fx, fy, index)
+    // from entities/links. The simulation adds these after renderGraph().
+    const cleanEntities = state.entities.map(e => ({
+      id: e.id,
+      name: e.name,
+      type: e.type,
+      count: e.count,
+      conversations: e.conversations,
+      cluster: e.cluster
+    }));
+    const cleanLinks = state.links.map(l => ({
+      source: typeof l.source === 'object' ? l.source.id : l.source,
+      target: typeof l.target === 'object' ? l.target.id : l.target,
+      weight: l.weight
+    }));
+    const snapshot = {
+      id: STORE_KEY,
+      version: STORE_VERSION,
+      importedAt: state.importedAt || new Date().toISOString(),
+      conversations: state.conversations,
+      entities: cleanEntities,
+      links: cleanLinks,
+      clusters: state.clusters.map(c => ({
+        id: c.id, name: c.name, color: c.color, count: c.count,
+        entities: c.entities.map(e => e.id)
+      })),
+      annotations: state.annotations || { conversations: {}, entities: {} },
+      aliases: state.aliases || {},
+      aliasRejections: state.aliasRejections || {},
+      qualityScores: state.qualityScores || {}
+    };
+    try {
+      await idbPut(snapshot);
+    } catch (err) {
+      console.warn('Synaptic: could not persist snapshot', err);
+    }
+  }
+
+  async function tryRestoreSnapshot() {
+    try {
+      const snap = await idbGet(STORE_KEY);
+      // Accept v1 and v2; v2 adds annotations/aliases/qualityScores (default to empty on v1)
+      if (!snap || (snap.version !== STORE_VERSION && snap.version !== 1)) return false;
+      if (!snap.conversations || !snap.conversations.length) return false;
+
+      state.conversations = snap.conversations.map(c => ({
+        ...c,
+        created: c.created ? new Date(c.created) : null
+      }));
+      state.entities = snap.entities;
+      state.links = snap.links;
+      // Re-hydrate clusters with full entity objects
+      const byId = Object.fromEntries(state.entities.map(e => [e.id, e]));
+      state.clusters = (snap.clusters || []).map(c => ({
+        ...c,
+        entities: c.entities.map(id => byId[id]).filter(Boolean)
+      }));
+      state.importedAt = snap.importedAt;
+      state.annotations = snap.annotations || { conversations: {}, entities: {} };
+      if (!state.annotations.conversations) state.annotations.conversations = {};
+      if (!state.annotations.entities) state.annotations.entities = {};
+      state.aliases = snap.aliases || {};
+      state.aliasRejections = snap.aliasRejections || {};
+      state.qualityScores = snap.qualityScores || {};
+
+      buildSearchIndex();
+      state.looseEnds = detectLooseEnds();
+      if (!Object.keys(state.qualityScores).length) computeQualityScores();
+      renderUI();
+      showRestoreToast(snap.importedAt, snap.conversations.length);
+      return true;
+    } catch (err) {
+      console.warn('Synaptic: could not restore snapshot', err);
+      return false;
+    }
+  }
+
+  function showRestoreToast(importedAt, count) {
+    const when = importedAt ? new Date(importedAt) : null;
+    const rel = when ? formatRelativeTime(when) : 'earlier';
+    showToast(`Restored ${count} conversations from ${rel}.`);
+  }
+
+  let _toastTimer = null;
+  function showToast(message, durationMs = 4000) {
+    const toast = document.getElementById('restore-toast');
+    const text = document.getElementById('restore-toast-text');
+    text.textContent = message;
+    toast.classList.add('show');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => toast.classList.remove('show'), durationMs);
+  }
+
+  function formatRelativeTime(date) {
+    const diff = Date.now() - date.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `${days}d ago`;
+    return date.toLocaleDateString();
+  }
+
+  // ─── Search Index (MiniSearch) ───
+  //  One document per message so we can jump to the exact spot.
+  //  id: `${convIdx}:${msgIdx}`
+  //  Falls back to a simple substring scanner if MiniSearch didn't load.
+  function buildSearchIndex() {
+    state.searchIndex = null;
+    if (typeof MiniSearch === 'undefined') {
+      // Fallback: flat docs we can substring-search later.
+      state.searchDocs = flattenDocs();
+      const status = document.getElementById('search-engine-status');
+      if (status) status.textContent = 'basic search (offline)';
+      return;
+    }
+    const index = new MiniSearch({
+      fields: ['title', 'content'],
+      storeFields: ['convIdx', 'msgIdx', 'title', 'role', 'content', 'created'],
+      searchOptions: {
+        boost: { title: 3 },
+        fuzzy: 0.15,
+        prefix: true,
+        combineWith: 'AND'
+      },
+      tokenize: (text) => (text.toLowerCase().match(/[a-z0-9][a-z0-9.#+_-]*/g) || [])
+    });
+    const docs = flattenDocs();
+    index.addAll(docs);
+    state.searchIndex = index;
+    state.searchDocs = docs;
+    const status = document.getElementById('search-engine-status');
+    if (status) status.textContent = `${docs.length} messages indexed`;
+  }
+
+  function flattenDocs() {
+    const docs = [];
+    state.conversations.forEach((conv, ci) => {
+      (conv.messages || []).forEach((msg, mi) => {
+        docs.push({
+          id: `${ci}:${mi}`,
+          convIdx: ci,
+          msgIdx: mi,
+          title: conv.title || 'Untitled',
+          role: msg.role || 'unknown',
+          content: msg.content || '',
+          created: conv.created ? new Date(conv.created).toISOString() : null
+        });
+      });
+    });
+    return docs;
+  }
+
+  function runSearch(query) {
+    query = query.trim();
+    if (!query) return [];
+    if (state.searchIndex) {
+      return state.searchIndex.search(query).slice(0, 50).map(r => ({
+        convIdx: r.convIdx, msgIdx: r.msgIdx,
+        title: r.title, role: r.role, content: r.content,
+        created: r.created, score: r.score,
+        terms: r.terms || []
+      }));
+    }
+    // Fallback substring search
+    const q = query.toLowerCase();
+    const results = [];
+    for (const d of (state.searchDocs || [])) {
+      const idx = d.content.toLowerCase().indexOf(q);
+      if (idx >= 0 || d.title.toLowerCase().includes(q)) {
+        results.push({ ...d, score: idx >= 0 ? 1 / (idx + 1) : 0.5, terms: [q] });
+        if (results.length > 50) break;
+      }
+    }
+    return results.sort((a, b) => b.score - a.score);
+  }
+
+  function buildSnippet(content, terms, maxLen = 220) {
+    if (!content) return '';
+    const lower = content.toLowerCase();
+    let anchor = 0;
+    for (const t of terms) {
+      const i = lower.indexOf(t.toLowerCase());
+      if (i >= 0) { anchor = i; break; }
+    }
+    const start = Math.max(0, anchor - 60);
+    const end = Math.min(content.length, start + maxLen);
+    let snippet = (start > 0 ? '…' : '') + content.slice(start, end) + (end < content.length ? '…' : '');
+    // Escape then highlight
+    snippet = esc(snippet);
+    for (const t of terms) {
+      if (!t) continue;
+      const re = new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      snippet = snippet.replace(re, '<mark>$1</mark>');
+    }
+    return snippet;
+  }
 
   // ─── Entity Extraction ───
   const STOP_WORDS = new Set([
@@ -741,7 +2664,14 @@
     'entire','function','directly','provides','instead','another','across',
     'application','combined','separate','different','specific','completely',
     'recommend','structure','integrate','implement','configure','conversion',
-    'excellent','perfect','beautiful','handling','processing','environment'
+    'excellent','perfect','beautiful','handling','processing','environment',
+    // Frequent prose/code tokens that leak through on real exports
+    'none','must','option','options','text','image','images','experience',
+    'years','year','changes','prompt','const','return','let','var','true','false',
+    'null','undefined','value','values','key','keys','item','items','list','lists',
+    'name','names','content','contents','result','results','error','errors','response',
+    'request','version','default','custom','main','current','existing','overall',
+    'context','within','without','along','whether','mean','means','seems','example'
   ]);
 
   const TECH_TERMS = new Set([
@@ -797,6 +2727,13 @@
 
     // Strip HTML tags to prevent XSS-derived entity extraction
     text = text.replace(/<[^>]{1,200}>/g, ' ');
+    // Strip fenced code blocks AND inline code — these are dominated by variable
+    // names and language keywords that pollute the graph (e.g. "candidates", "dist",
+    // "None", "cellRenderer"). Real-world ChatGPT responses are mostly code.
+    text = text.replace(/```[\s\S]*?```/g, ' ');
+    text = text.replace(/`[^`\n]{1,80}`/g, ' ');
+    // Strip URLs — "https" otherwise lands in the top entities.
+    text = text.replace(/https?:\/\/\S+/g, ' ');
 
     // Extract capitalized multi-word phrases (likely proper nouns)
     const properNouns = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g) || [];
@@ -843,10 +2780,12 @@
         freq[w] = (freq[w] || 0) + 1;
       }
     });
+    // Require 3+ occurrences (was 2) — on long AI responses single-token noise
+    // would otherwise dominate. Proper nouns + tech terms still captured above.
     Object.entries(freq)
-      .filter(([_, c]) => c >= 2)
+      .filter(([_, c]) => c >= 3)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 30)
+      .slice(0, 20)
       .forEach(([word, count]) => {
         if (!entities[word]) {
           entities[word] = { name: word, type: 'concept', count };
@@ -882,8 +2821,12 @@
       }
     });
 
-    // Filter to top entities
+    // Filter to top entities. Concepts + proper nouns must span ≥2 conversations
+    // to count as a "recurring theme" — single-thread jargon (e.g. random product
+    // names, copied HTML text) doesn't belong in the knowledge graph. Tech terms
+    // are always kept since our TECH_TERMS list is curated.
     const sorted = Object.values(globalEntities)
+      .filter(e => e.type === 'tech' || e.conversations.size >= 2)
       .sort((a, b) => b.count - a.count)
       .slice(0, 120);
 
@@ -948,23 +2891,53 @@
 
   // ─── Data Parsers ───
   function parseChatGPT(data) {
-    // ChatGPT export: array of { title, mapping: { ... } } or similar
+    // ChatGPT export: array of { title, mapping: {...}, current_node } or similar.
+    // The `mapping` is a tree (each node has parent/children). `Object.values(mapping)`
+    // does NOT give chronological order — we must walk from current_node back to the
+    // root to get the canonical displayed branch (ignoring abandoned regenerations).
     if (Array.isArray(data)) {
       return data.map(conv => {
-        const messages = [];
         const title = conv.title || 'Untitled';
         const created = conv.create_time ? new Date(conv.create_time * 1000) : new Date();
+        const messages = [];
 
         if (conv.mapping) {
-          Object.values(conv.mapping).forEach(node => {
-            if (node.message && node.message.content && node.message.content.parts) {
-              const role = node.message.author?.role || 'unknown';
-              const content = node.message.content.parts
-                .filter(p => typeof p === 'string')
+          // Collect nodes on the active branch (current_node → root via parent pointers).
+          const activeNodes = [];
+          if (conv.current_node && conv.mapping[conv.current_node]) {
+            const seen = new Set();
+            let cur = conv.current_node;
+            while (cur && conv.mapping[cur] && !seen.has(cur)) {
+              seen.add(cur);
+              activeNodes.push(conv.mapping[cur]);
+              cur = conv.mapping[cur].parent;
+            }
+            activeNodes.reverse(); // root-first, chronological
+          } else {
+            // Fallback: no current_node — walk all nodes sorted by create_time
+            activeNodes.push(...Object.values(conv.mapping)
+              .filter(n => n && n.message)
+              .sort((a, b) => (a.message.create_time || 0) - (b.message.create_time || 0)));
+          }
+
+          activeNodes.forEach(node => {
+            const msg = node && node.message;
+            if (!msg || !msg.content) return;
+            const role = msg.author?.role || 'unknown';
+            // Skip system prompts + empty tool echoes that aren't meant to be seen.
+            if (role === 'system' && msg.metadata?.is_visually_hidden_from_conversation) return;
+            // Handle multiple content types (text / multimodal_text / code).
+            let content = '';
+            if (msg.content.parts) {
+              content = msg.content.parts
+                .map(p => typeof p === 'string' ? p : (p?.text || ''))
+                .filter(Boolean)
                 .join('\n');
-              if (content.trim()) {
-                messages.push({ role, content, timestamp: node.message.create_time });
-              }
+            } else if (typeof msg.content.text === 'string') {
+              content = msg.content.text;
+            }
+            if (content.trim()) {
+              messages.push({ role, content, timestamp: msg.create_time });
             }
           });
         } else if (conv.messages) {
@@ -1025,23 +2998,52 @@
     return [];
   }
 
-  function importData(jsonData) {
-    let conversations = parseChatGPT(jsonData);
-    if (!conversations.length) conversations = parseClaude(jsonData);
-    if (!conversations.length) conversations = parseGeneric(jsonData);
+  // Build a stable key for dedupe: title + first user message (safe across
+  // re-exports where create_time precision may drift or the user renames chats).
+  function convKey(c) {
+    const firstMsg = (c.messages && c.messages[0]) ? (c.messages[0].content || '') : '';
+    const firstLine = firstMsg.slice(0, 200).replace(/\s+/g, ' ').trim();
+    const title = (c.title || '').trim();
+    return title + '|' + firstLine;
+  }
 
-    // Filter out empty conversations
-    conversations = conversations.filter(c => c.messages.length > 0);
+  function importData(jsonData, opts = {}) {
+    let parsed = parseChatGPT(jsonData);
+    if (!parsed.length) parsed = parseClaude(jsonData);
+    if (!parsed.length) parsed = parseGeneric(jsonData);
+    parsed = parsed.filter(c => c.messages.length > 0);
 
-    if (conversations.length === 0) {
+    if (parsed.length === 0) {
       alert('Could not parse the file. Please ensure it\'s a ChatGPT or Claude export (JSON format).');
       return;
+    }
+
+    // Merge mode: append new conversations onto existing state, skipping
+    // duplicates by (title + first message). Triggered when existing data is
+    // present OR when opts.merge === true (multi-file batch imports).
+    const merge = opts.merge || (Array.isArray(state.conversations) && state.conversations.length > 0);
+    let conversations, added = 0, skipped = 0;
+    if (merge) {
+      const existing = state.conversations || [];
+      const seen = new Set(existing.map(convKey));
+      conversations = existing.slice();
+      for (const c of parsed) {
+        const k = convKey(c);
+        if (seen.has(k)) { skipped++; continue; }
+        seen.add(k);
+        conversations.push(c);
+        added++;
+      }
+    } else {
+      conversations = parsed;
+      added = parsed.length;
     }
 
     state.conversations = conversations;
     const graph = buildGraph(conversations);
     state.entities = graph.entities;
     state.links = graph.links;
+    state._importStats = { added, skipped, merge, total: conversations.length };
 
     // Build clusters
     const clusterMap = {};
@@ -1062,7 +3064,26 @@
       c.name = c.entities.sort((a, b) => b.count - a.count)[0]?.name || `Cluster ${i}`;
     });
 
+    state.importedAt = new Date().toISOString();
+    state.yearNarrative = null;
+    buildSearchIndex();
+    state.looseEnds = detectLooseEnds();
+    computeQualityScores();
+    persistSnapshot();
     renderUI();
+    maybeShowFirstTimeHint();
+
+    // Toast feedback for merges (first import gets the big first-time hint instead)
+    const stats = state._importStats;
+    if (stats && stats.merge && typeof showToast === 'function') {
+      if (stats.added === 0) {
+        showToast(`No new conversations — all ${stats.skipped} already imported.`);
+      } else if (stats.skipped > 0) {
+        showToast(`+${stats.added} new conversation${stats.added === 1 ? '' : 's'} · ${stats.skipped} duplicate${stats.skipped === 1 ? '' : 's'} skipped · ${stats.total} total.`);
+      } else {
+        showToast(`+${stats.added} new conversation${stats.added === 1 ? '' : 's'} · ${stats.total} total.`);
+      }
+    }
   }
 
   // ─── Demo Data Generator ───
@@ -1192,6 +3213,11 @@
     renderGraph();
     renderTimeline();
     renderAnalytics();
+    renderLooseEnds();
+    renderLooseEndsSidebar();
+    renderPinnedSidebar();
+    renderAliasSidebar();
+    renderYearNarrative();
   }
 
   function renderTopics() {
@@ -1410,6 +3436,10 @@
     const mentions = entity.conversations.map(ci => state.conversations[ci]).filter(Boolean);
 
     content.innerHTML = `
+      ${renderAnnotationPanel('entities', entity.id)}
+      <div class="bundle-cta-row">
+        <button class="bundle-btn primary" data-action="bundle-entity" title="Build a prompt you can paste into a new ChatGPT/Claude/Cursor chat to pick up this topic instantly">📋 Create resume prompt</button>
+      </div>
       <div class="detail-section">
         <h3>Stats</h3>
         <div style="font-size:13px; line-height:1.8">
@@ -1430,11 +3460,35 @@
       </div>
       <div class="detail-section">
         <h3>Conversations (${mentions.length})</h3>
-        ${mentions.slice(0, 8).map(m => `
-          <div class="mention-item">${esc(m.title)}</div>
-        `).join('')}
+        ${mentions.slice(0, 8).map(m => {
+          const idx = state.conversations.indexOf(m);
+          const score = state.qualityScores[idx];
+          const tier = score != null ? qualityTier(score) : null;
+          const bar = tier ? `
+            <span class="quality-bar" title="Usefulness score: ${score}/100 (${tier.label}) — based on depth, code shared, reasoning length, and whether the conversation reached a resolution.">
+              <span class="quality-bar-track"><span class="quality-bar-fill" style="width:${score}%;background:${tier.color}"></span></span>
+            </span>
+          ` : '';
+          return `<div class="mention-item" data-conv-idx="${idx}" title="Open conversation">${esc(m.title)}${bar}</div>`;
+        }).join('')}
       </div>
     `;
+
+    wireAnnotationPanel(content);
+
+    content.querySelectorAll('.mention-item[data-conv-idx]').forEach(el => {
+      el.addEventListener('click', () => {
+        const ci = parseInt(el.dataset.convIdx, 10);
+        if (!isNaN(ci)) openConversationViewer(ci, null, entity.name);
+      });
+    });
+
+    const bundleBtn = content.querySelector('[data-action="bundle-entity"]');
+    if (bundleBtn) {
+      bundleBtn.addEventListener('click', () => {
+        openBundleModal({ type: 'entity', entityId: entity.id });
+      });
+    }
   }
 
   // ─── Timeline View ───
@@ -1454,12 +3508,33 @@
         <div class="timeline-day fade-in">
           <div class="timeline-date">${date}</div>
           ${convs.map(c => {
+            const ci = state.conversations.indexOf(c);
             const text = c.messages.map(m => m.content).join(' ');
             const ents = Object.values(extractEntities(text)).slice(0, 5);
+            const ann = getAnn('conversations', ci);
+            const score = state.qualityScores[ci];
+            const tier = score != null ? qualityTier(score) : null;
+            const statusMeta = ann?.status ? ANNOTATION_STATUSES.find(s => s.id === ann.status) : null;
+            const statusPill = statusMeta ? `
+              <span class="status-pill" style="color:${statusMeta.color};border:1px solid ${statusMeta.color}33">
+                ${statusMeta.label}
+              </span>
+            ` : '';
+            const pinBadge = ann?.pinned ? `<span style="color:var(--accent-yellow);margin-right:6px" title="Pinned">★</span>` : '';
+            const tagRun = (ann?.tags || []).map(t => `<span class="timeline-tag" style="background:rgba(78,124,255,0.15);color:var(--accent-blue)">#${esc(t)}</span>`).join('');
+            const qBar = tier ? `
+              <span class="quality-bar" title="Usefulness ${score}/100 (${tier.label}) — Synaptic's guess at how valuable this chat was. Based on depth (turns, code shared, reasoning length) and whether it reached a resolution." style="margin-left:8px">
+                <span class="quality-bar-track"><span class="quality-bar-fill" style="width:${score}%;background:${tier.color}"></span></span>
+                <span>${score}</span>
+              </span>
+            ` : '';
             return `
-              <div class="timeline-item">
-                <div class="timeline-title">${esc(c.title)}</div>
+              <div class="timeline-item" data-conv-idx="${ci}" style="cursor:pointer">
+                <div class="timeline-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  ${pinBadge}${esc(c.title)} ${statusPill} ${qBar}
+                </div>
                 <div class="timeline-topics">
+                  ${tagRun}
                   ${ents.map(e => `<span class="timeline-tag">${esc(e.name)}</span>`).join('')}
                 </div>
               </div>
@@ -1467,6 +3542,13 @@
           }).join('')}
         </div>
       `).join('');
+
+    container.querySelectorAll('.timeline-item[data-conv-idx]').forEach(el => {
+      el.addEventListener('click', () => {
+        const ci = parseInt(el.dataset.convIdx, 10);
+        if (!isNaN(ci)) openConversationViewer(ci, null, '');
+      });
+    });
   }
 
   // ─── Analytics View ───
@@ -1567,23 +3649,1995 @@
     `;
   }
 
+  // ─── Annotations ───
+  //  Light annotation layer on top of conversations + entities.
+  //  Persisted in snapshot. Backward-compatible with v1 snapshots.
+  //  Schema per item: { pinned: bool, tags: string[], note: string,
+  //                     status: 'open'|'in-progress'|'resolved'|'abandoned', updatedAt: iso }
+  const ANNOTATION_STATUSES = [
+    { id: 'open',        label: 'Open',        color: '#8888a8' },
+    { id: 'in-progress', label: 'In progress', color: '#ffd166' },
+    { id: 'resolved',    label: 'Resolved',    color: '#06d6a0' },
+    { id: 'abandoned',   label: 'Abandoned',   color: '#6c7a96' }
+  ];
+
+  function getAnn(kind, key) {
+    const bucket = state.annotations[kind] || {};
+    return bucket[String(key)] || null;
+  }
+
+  function setAnn(kind, key, patch) {
+    if (!state.annotations[kind]) state.annotations[kind] = {};
+    const k = String(key);
+    const prev = state.annotations[kind][k] || { pinned: false, tags: [], note: '', status: null };
+    const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
+    // Clean empty
+    if (!next.pinned && (!next.tags || !next.tags.length) && !next.note && !next.status) {
+      delete state.annotations[kind][k];
+    } else {
+      state.annotations[kind][k] = next;
+    }
+    persistSnapshot();
+  }
+
+  function togglePin(kind, key) {
+    const cur = getAnn(kind, key);
+    setAnn(kind, key, { pinned: !cur?.pinned });
+    renderPinnedSidebar();
+  }
+
+  function addTag(kind, key, tag) {
+    tag = (tag || '').trim().toLowerCase();
+    if (!tag || tag.length > 32) return;
+    const cur = getAnn(kind, key);
+    const tags = cur?.tags || [];
+    if (tags.includes(tag)) return;
+    setAnn(kind, key, { tags: [...tags, tag] });
+  }
+
+  function removeTag(kind, key, tag) {
+    const cur = getAnn(kind, key);
+    if (!cur?.tags) return;
+    setAnn(kind, key, { tags: cur.tags.filter(t => t !== tag) });
+  }
+
+  function setStatus(kind, key, status) {
+    setAnn(kind, key, { status });
+  }
+
+  function setNote(kind, key, note) {
+    setAnn(kind, key, { note: (note || '').slice(0, 2000) });
+  }
+
+  function renderAnnotationPanel(kind, key) {
+    const ann = getAnn(kind, key) || {};
+    const tags = ann.tags || [];
+    const status = ann.status || 'open';
+    const pinned = !!ann.pinned;
+    const hasNote = !!(ann.note && ann.note.trim());
+    const statusMeta = ANNOTATION_STATUSES.find(s => s.id === status);
+    const hasAny = pinned || tags.length || hasNote || (ann.status && ann.status !== 'open');
+
+    const summaryPills = [];
+    if (pinned) summaryPills.push(`<span class="annotation-summary-pill pin">★ Pinned</span>`);
+    if (ann.status && ann.status !== 'open' && statusMeta) {
+      summaryPills.push(`<span class="annotation-summary-pill" style="color:${statusMeta.color}">${statusMeta.label}</span>`);
+    }
+    if (tags.length) summaryPills.push(`<span class="annotation-summary-pill">${tags.length} ${tags.length === 1 ? 'tag' : 'tags'}</span>`);
+    if (hasNote) summaryPills.push(`<span class="annotation-summary-pill">Note</span>`);
+
+    const summaryText = hasAny
+      ? summaryPills.join(' ')
+      : '<span style="color:var(--text-muted)">+ Pin, tag, or note this</span>';
+
+    return `
+      <div class="annotation-panel${hasAny ? '' : ''}" data-kind="${esc(kind)}" data-key="${esc(String(key))}">
+        <div class="annotation-summary ${hasAny ? 'has-content' : ''}" data-action="toggle-open" title="Annotate this — pin for quick access, tag for grouping, or add a private note">
+          ${summaryText}
+          <span class="annotation-summary-caret">▾</span>
+        </div>
+        <div class="annotation-body">
+          <div class="ann-row">
+            <button class="ann-pin ${pinned ? 'pinned' : ''}" data-action="toggle-pin" title="${pinned ? 'Unpin — removes from sidebar' : 'Pin — shows in sidebar for quick access'}">
+              ${pinned ? '★ Pinned' : '☆ Pin'}
+            </button>
+            <select class="ann-status" data-action="set-status" title="Track progress on this">
+              ${ANNOTATION_STATUSES.map(s => `
+                <option value="${s.id}" ${status === s.id ? 'selected' : ''}>${s.label}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="ann-tags">
+            ${tags.map(t => `
+              <span class="ann-tag" data-tag="${esc(t)}">#${esc(t)}<span class="ann-tag-x" data-action="remove-tag" data-tag="${esc(t)}" title="Remove tag">×</span></span>
+            `).join('')}
+            <input class="ann-tag-input" data-action="add-tag" placeholder="+ tag" maxlength="32" title="Free-form tag — press Enter to add" />
+          </div>
+          <textarea class="ann-note" data-action="set-note" placeholder="Private note — stays on your device, never synced." maxlength="2000">${esc(ann.note || '')}</textarea>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireAnnotationPanel(rootEl) {
+    if (!rootEl) return;
+    const panels = rootEl.querySelectorAll('.annotation-panel');
+    panels.forEach(panel => {
+      const kind = panel.dataset.kind;
+      const key = panel.dataset.key;
+
+      panel.querySelector('[data-action="toggle-open"]')?.addEventListener('click', () => {
+        panel.classList.toggle('open');
+      });
+
+      panel.querySelector('[data-action="toggle-pin"]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePin(kind, key);
+        const wasOpen = panel.classList.contains('open');
+        panel.outerHTML = renderAnnotationPanel(kind, key);
+        wireAnnotationPanel(rootEl);
+        if (wasOpen) {
+          const fresh = rootEl.querySelector(`.annotation-panel[data-kind="${kind}"][data-key="${key}"]`);
+          if (fresh) fresh.classList.add('open');
+        }
+      });
+      panel.querySelector('[data-action="set-status"]')?.addEventListener('change', (e) => {
+        setStatus(kind, key, e.target.value);
+      });
+      const reopenIfNeeded = (wasOpen) => {
+        if (!wasOpen) return;
+        const fresh = rootEl.querySelector(`.annotation-panel[data-kind="${kind}"][data-key="${key}"]`);
+        if (fresh) fresh.classList.add('open');
+      };
+
+      panel.querySelectorAll('[data-action="remove-tag"]').forEach(x => {
+        x.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasOpen = panel.classList.contains('open');
+          removeTag(kind, key, x.dataset.tag);
+          panel.outerHTML = renderAnnotationPanel(kind, key);
+          wireAnnotationPanel(rootEl);
+          reopenIfNeeded(wasOpen);
+        });
+      });
+      const tagInput = panel.querySelector('[data-action="add-tag"]');
+      tagInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const val = tagInput.value.trim().replace(/,$/, '');
+          if (val) {
+            const wasOpen = panel.classList.contains('open');
+            addTag(kind, key, val);
+            tagInput.value = '';
+            panel.outerHTML = renderAnnotationPanel(kind, key);
+            wireAnnotationPanel(rootEl);
+            reopenIfNeeded(wasOpen);
+            // Keep focus in the new tag input so user can keep typing tags
+            const freshInput = rootEl.querySelector(`.annotation-panel[data-kind="${kind}"][data-key="${key}"] .ann-tag-input`);
+            if (freshInput) freshInput.focus();
+          }
+        }
+      });
+      const noteInput = panel.querySelector('[data-action="set-note"]');
+      let noteDebounce;
+      noteInput?.addEventListener('input', (e) => {
+        clearTimeout(noteDebounce);
+        noteDebounce = setTimeout(() => setNote(kind, key, e.target.value), 400);
+      });
+    });
+  }
+
+  function renderPinnedSidebar() {
+    const el = document.getElementById('pinned-sidebar');
+    if (!el) return;
+    const convPinned = Object.entries(state.annotations.conversations || {})
+      .filter(([, v]) => v.pinned)
+      .map(([k]) => ({ kind: 'conversations', key: k, title: state.conversations[k]?.title || 'Conversation', idx: parseInt(k, 10) }));
+    const entPinned = Object.entries(state.annotations.entities || {})
+      .filter(([, v]) => v.pinned)
+      .map(([k]) => {
+        const ent = state.entities.find(e => e.id === k);
+        return ent ? { kind: 'entities', key: k, title: ent.name, ent } : null;
+      })
+      .filter(Boolean);
+
+    const total = convPinned.length + entPinned.length;
+    if (!total) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div class="section-title" title="Quick access to anything you\u2019ve pinned. Pin from a detail panel or conversation viewer.">Pinned · ${total}</div>
+      ${entPinned.map(p => `
+        <div class="le-preview-item" data-kind="entity" data-id="${esc(p.key)}">
+          <span class="le-preview-dot" style="background:${COLORS[p.ent.type] || COLORS.default}"></span>
+          <span class="le-preview-text">${esc(p.title)}</span>
+        </div>
+      `).join('')}
+      ${convPinned.map(p => `
+        <div class="le-preview-item" data-kind="conversation" data-idx="${esc(String(p.idx))}">
+          <span class="le-preview-dot" style="background:var(--accent-cyan)"></span>
+          <span class="le-preview-text">${esc(p.title)}</span>
+        </div>
+      `).join('')}
+    `;
+    el.querySelectorAll('[data-kind="entity"]').forEach(it => {
+      it.addEventListener('click', () => {
+        const ent = state.entities.find(e => e.id === it.dataset.id);
+        if (ent) showDetail(ent);
+      });
+    });
+    el.querySelectorAll('[data-kind="conversation"]').forEach(it => {
+      it.addEventListener('click', () => {
+        const idx = parseInt(it.dataset.idx, 10);
+        if (!isNaN(idx)) openConversationViewer(idx, null, '');
+      });
+    });
+  }
+
+  // ─── Secret Redaction ───
+  //  Pre-ingestion scanner. Patterns inspired by gitleaks / detect-secrets.
+  //  All purely regex, all local, zero dependencies.
+  const SECRET_PATTERNS = [
+    { id: 'openai',      label: 'OpenAI API key',   re: /\bsk-[A-Za-z0-9]{20,}\b/g },
+    { id: 'anthropic',   label: 'Anthropic API key',re: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/g },
+    { id: 'aws-key',     label: 'AWS access key',   re: /\bAKIA[0-9A-Z]{16}\b/g },
+    { id: 'aws-session', label: 'AWS session token',re: /\bASIA[0-9A-Z]{16}\b/g },
+    { id: 'github',      label: 'GitHub token',     re: /\bghp_[A-Za-z0-9]{30,}\b|\bghs_[A-Za-z0-9]{30,}\b|\bgho_[A-Za-z0-9]{30,}\b|\bghu_[A-Za-z0-9]{30,}\b|\bghr_[A-Za-z0-9]{30,}\b/g },
+    { id: 'gitlab',      label: 'GitLab token',     re: /\bglpat-[A-Za-z0-9_-]{20,}\b/g },
+    { id: 'google-api',  label: 'Google API key',   re: /\bAIza[0-9A-Za-z_-]{35}\b/g },
+    { id: 'slack',       label: 'Slack token',      re: /\bxox[baprs]-[0-9A-Za-z-]{10,}\b/g },
+    { id: 'stripe',      label: 'Stripe key',       re: /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b/g },
+    { id: 'jwt',         label: 'JWT',              re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_.+/=-]{10,}\b/g },
+    { id: 'private-key', label: 'Private key',      re: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----[\s\S]+?-----END (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----/g },
+    { id: 'email',       label: 'Email address',    re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
+    { id: 'phone',       label: 'Phone number',     re: /\b(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g },
+    { id: 'credit-card', label: 'Credit card',      re: /\b(?:\d[ -]?){13,19}\b/g, validate: luhnOk },
+    { id: 'ipv4',        label: 'IP address',       re: /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/g }
+  ];
+
+  function luhnOk(num) {
+    const digits = String(num).replace(/[\s-]/g, '');
+    if (digits.length < 13 || digits.length > 19) return false;
+    let sum = 0, alt = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let n = parseInt(digits[i], 10);
+      if (isNaN(n)) return false;
+      if (alt) { n *= 2; if (n > 9) n -= 9; }
+      sum += n;
+      alt = !alt;
+    }
+    return sum % 10 === 0;
+  }
+
+  function scanForSecrets(jsonData) {
+    const raw = typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData);
+    const found = {};  // id -> Set of matches
+    for (const pat of SECRET_PATTERNS) {
+      pat.re.lastIndex = 0;
+      const hits = raw.match(pat.re) || [];
+      for (const h of hits) {
+        if (pat.validate && !pat.validate(h)) continue;
+        if (!found[pat.id]) found[pat.id] = new Set();
+        found[pat.id].add(h);
+      }
+    }
+    return Object.entries(found).map(([id, set]) => ({
+      id,
+      label: SECRET_PATTERNS.find(p => p.id === id).label,
+      count: set.size,
+      samples: [...set].slice(0, 3).map(s => s.length > 40 ? s.slice(0, 24) + '…' + s.slice(-6) : s)
+    })).sort((a, b) => b.count - a.count);
+  }
+
+  function redactSecrets(jsonData, selectedIds) {
+    const wanted = new Set(selectedIds);
+    const mutate = (s) => {
+      if (typeof s !== 'string') return s;
+      let out = s;
+      for (const pat of SECRET_PATTERNS) {
+        if (!wanted.has(pat.id)) continue;
+        out = out.replace(pat.re, (m) => {
+          if (pat.validate && !pat.validate(m)) return m;
+          return `[REDACTED:${pat.id.toUpperCase()}]`;
+        });
+      }
+      return out;
+    };
+    const walk = (obj) => {
+      if (obj == null) return obj;
+      if (typeof obj === 'string') return mutate(obj);
+      if (Array.isArray(obj)) return obj.map(walk);
+      if (typeof obj === 'object') {
+        const out = {};
+        for (const k of Object.keys(obj)) out[k] = walk(obj[k]);
+        return out;
+      }
+      return obj;
+    };
+    return walk(jsonData);
+  }
+
+  // ─── Alias Clustering ───
+  //  Suggest entity merges using Levenshtein + abbreviation + substring heuristics.
+  //  Top-K entities only (performance). User accepts/rejects; rejects are remembered.
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    const prev = new Array(b.length + 1);
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      let cur = new Array(b.length + 1);
+      cur[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      }
+      for (let j = 0; j <= b.length; j++) prev[j] = cur[j];
+    }
+    return prev[b.length];
+  }
+
+  function similarityScore(a, b) {
+    const la = a.toLowerCase(), lb = b.toLowerCase();
+    if (la === lb) return 1;
+    // Substring: "react" ⊂ "reactjs"
+    const minLen = Math.min(la.length, lb.length);
+    if (minLen >= 3 && (la.includes(lb) || lb.includes(la))) {
+      const longer = la.length >= lb.length ? la : lb;
+      const shorter = la.length < lb.length ? la : lb;
+      return 0.88 - (longer.length - shorter.length) / (longer.length * 2.5);
+    }
+    // Abbreviation: "k8s" ↔ "kubernetes"
+    const digitAbbr = /^([a-z])(\d+)([a-z])$/;
+    const checkAbbr = (short, full) => {
+      const m = short.match(digitAbbr);
+      if (!m) return 0;
+      const [, first, mid, last] = m;
+      const n = parseInt(mid, 10);
+      if (full.length === n + 2 && full[0] === first && full[full.length - 1] === last) return 0.9;
+      return 0;
+    };
+    const abbr = Math.max(checkAbbr(la, lb), checkAbbr(lb, la));
+    if (abbr) return abbr;
+    // Levenshtein for similar-length tokens
+    if (Math.abs(la.length - lb.length) <= 3 && minLen >= 4) {
+      const d = levenshtein(la, lb);
+      const maxLen = Math.max(la.length, lb.length);
+      const ratio = 1 - d / maxLen;
+      if (ratio >= 0.75) return ratio;
+    }
+    return 0;
+  }
+
+  function computeAliasSuggestions(maxSuggestions = 12) {
+    if (!state.entities || state.entities.length < 2) return [];
+    // Only compare within the top 80 entities by count to keep cost bounded.
+    const pool = [...state.entities].sort((a, b) => b.count - a.count).slice(0, 80);
+    const rej = state.aliasRejections || {};
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i < pool.length; i++) {
+      for (let j = i + 1; j < pool.length; j++) {
+        const a = pool[i], b = pool[j];
+        if (a.cluster !== b.cluster && a.type !== b.type) continue; // require type or cluster affinity
+        const key = [a.id, b.id].sort().join('|');
+        if (rej[key] || seen.has(key)) continue;
+        const s = similarityScore(a.name, b.name);
+        if (s >= 0.75) {
+          seen.add(key);
+          // Canonical = higher count (preserve the more-established name)
+          const [canonical, other] = a.count >= b.count ? [a, b] : [b, a];
+          out.push({
+            key, score: s,
+            canonical: { id: canonical.id, name: canonical.name, count: canonical.count },
+            other:     { id: other.id,     name: other.name,     count: other.count }
+          });
+        }
+      }
+    }
+    return out.sort((a, b) => b.score - a.score).slice(0, maxSuggestions);
+  }
+
+  function mergeEntities(canonicalId, otherId) {
+    const canon = state.entities.find(e => e.id === canonicalId);
+    const other = state.entities.find(e => e.id === otherId);
+    if (!canon || !other) return;
+    // Merge counts + conversation list
+    canon.count += other.count;
+    const convSet = new Set([...(canon.conversations || []), ...(other.conversations || [])]);
+    canon.conversations = [...convSet];
+    // Rewrite links
+    state.links.forEach(l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      if (sid === otherId) { if (typeof l.source === 'object') l.source.id = canonicalId; else l.source = canonicalId; }
+      if (tid === otherId) { if (typeof l.target === 'object') l.target.id = canonicalId; else l.target = canonicalId; }
+    });
+    // Collapse duplicate links (canon--x appearing twice now)
+    const linkMap = {};
+    for (const l of state.links) {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      if (sid === tid) continue; // self-loop after merge
+      const k = [sid, tid].sort().join('|');
+      if (!linkMap[k]) linkMap[k] = { source: sid, target: tid, weight: 0 };
+      linkMap[k].weight += l.weight;
+    }
+    state.links = Object.values(linkMap);
+    // Remove the other entity
+    state.entities = state.entities.filter(e => e.id !== otherId);
+    // Carry annotation forward (merge tags/notes)
+    const aOther = state.annotations.entities?.[otherId];
+    const aCanon = state.annotations.entities?.[canonicalId];
+    if (aOther) {
+      const merged = {
+        pinned: (aCanon?.pinned) || aOther.pinned,
+        tags: Array.from(new Set([...(aCanon?.tags || []), ...(aOther.tags || [])])),
+        note: [aCanon?.note, aOther.note].filter(Boolean).join('\n\n').slice(0, 2000),
+        status: aCanon?.status || aOther.status || null,
+        updatedAt: new Date().toISOString()
+      };
+      state.annotations.entities[canonicalId] = merged;
+      delete state.annotations.entities[otherId];
+    }
+    // Record the alias
+    state.aliases[otherId] = canonicalId;
+    // Success feedback
+    if (typeof showToast === 'function') {
+      showToast(`Merged "${other.name}" into "${canon.name}" — counts combined.`);
+    }
+    // Recompute clusters cheaply: rebuild cluster membership using existing cluster ids
+    const clusterMap = {};
+    state.entities.forEach(e => {
+      if (!clusterMap[e.cluster]) clusterMap[e.cluster] = { id: e.cluster, entities: [], count: 0 };
+      clusterMap[e.cluster].entities.push(e);
+      clusterMap[e.cluster].count += e.count;
+    });
+    state.clusters = Object.values(clusterMap).sort((a, b) => b.count - a.count).slice(0, 15);
+    state.clusters.forEach((c, i) => {
+      c.color = CLUSTER_COLORS[i % CLUSTER_COLORS.length];
+      c.name = c.entities.sort((a, b) => b.count - a.count)[0]?.name || `Cluster ${i}`;
+    });
+    // Rebuild search index + loose ends + quality, then persist + re-render
+    buildSearchIndex();
+    state.looseEnds = detectLooseEnds();
+    computeQualityScores();
+    persistSnapshot();
+    renderUI();
+  }
+
+  function rejectAliasSuggestion(key) {
+    state.aliasRejections[key] = true;
+    persistSnapshot();
+    renderAliasSidebar();
+  }
+
+  function renderAliasSidebar() {
+    const el = document.getElementById('alias-sidebar');
+    if (!el) return;
+    const suggestions = computeAliasSuggestions(5);
+    if (!suggestions.length) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div class="section-title" title="Synaptic thinks these entity pairs might refer to the same thing. Merging combines their counts and links. Rejections are remembered.">
+        Might be duplicates · ${suggestions.length}
+      </div>
+      <div style="font-size:11px; color:var(--text-muted); margin: -4px 0 8px; padding: 0 2px; line-height:1.45">
+        These entity names look similar — probably the same thing. Merge or dismiss:
+      </div>
+      ${suggestions.map(s => `
+        <div class="alias-card" data-key="${esc(s.key)}">
+          <div class="alias-pair" title="Merging keeps the name on the left and folds in mentions from the right">
+            <strong>${esc(s.canonical.name)}</strong>
+            <span class="alias-sep">↔</span>
+            <span>${esc(s.other.name)}</span>
+          </div>
+          <div class="alias-meta" title="Fuzzy similarity score · combined mention counts">${Math.round(s.score * 100)}% match · ${s.canonical.count} + ${s.other.count}</div>
+          <div class="alias-actions">
+            <button class="alias-btn alias-merge" data-action="merge" title="Combine counts, redirect links, keep annotations">Merge</button>
+            <button class="alias-btn" data-action="reject" title="Dismiss — we won't suggest this pair again">Not duplicates</button>
+          </div>
+        </div>
+      `).join('')}
+    `;
+    el.querySelectorAll('.alias-card').forEach(card => {
+      const key = card.dataset.key;
+      const suggestion = suggestions.find(s => s.key === key);
+      if (!suggestion) return;
+      card.querySelector('[data-action="merge"]').addEventListener('click', () => {
+        mergeEntities(suggestion.canonical.id, suggestion.other.id);
+      });
+      card.querySelector('[data-action="reject"]').addEventListener('click', () => {
+        rejectAliasSuggestion(key);
+      });
+    });
+  }
+
+  // ─── Quality Scoring ───
+  //  Per-conversation usefulness score 0–100 based on message depth, code,
+  //  resolution signals, entity richness, and assistant reasoning length.
+  function scoreConversation(conv) {
+    const msgs = conv.messages || [];
+    if (!msgs.length) return 0;
+    let score = 0;
+    // Depth (max 25): 2+ roundtrips feel substantive
+    const userTurns = msgs.filter(m => m.role === 'user').length;
+    const astTurns = msgs.filter(m => m.role === 'assistant').length;
+    score += Math.min(25, userTurns * 5 + astTurns * 3);
+    // Code presence (max 15)
+    const allText = msgs.map(m => m.content || '').join('\n');
+    const codeMatches = allText.match(CODE_BLOCK_RE) || [];
+    score += Math.min(15, codeMatches.length * 5);
+    // Resolution (max 20)
+    if (COMPLETION_RE.test(allText)) score += 20;
+    // Average assistant message length (max 15): proxy for reasoning depth
+    const astLens = msgs.filter(m => m.role === 'assistant').map(m => (m.content || '').length);
+    const avgAst = astLens.length ? astLens.reduce((a, b) => a + b, 0) / astLens.length : 0;
+    score += Math.min(15, avgAst / 100);
+    // Entity richness (max 15): unique entities touched
+    const ents = Object.keys(extractEntities(allText.slice(0, 8000))).length;
+    score += Math.min(15, ents * 1.5);
+    // Penalty: very short conversations
+    if (msgs.length <= 2) score *= 0.5;
+    return Math.round(Math.max(0, Math.min(100, score)));
+  }
+  // ensure CODE_BLOCK_RE from bundles module is reused; defined above
+
+  function computeQualityScores() {
+    const scores = {};
+    state.conversations.forEach((c, i) => {
+      scores[i] = scoreConversation(c);
+    });
+    state.qualityScores = scores;
+    return scores;
+  }
+
+  function qualityTier(score) {
+    if (score >= 75) return { label: 'high',   color: '#06d6a0' };
+    if (score >= 50) return { label: 'medium', color: '#ffd166' };
+    if (score >= 25) return { label: 'low',    color: '#ff8c42' };
+    return { label: 'noise', color: '#6c7a96' };
+  }
+
+  // ─── Déjà vu ───
+  //  When opening a conversation, find older conversations that overlap heavily
+  //  in extracted entities. "You discussed this before on X."
+  function findDejaVu(convIdx, opts = {}) {
+    const maxResults = opts.max || 5;
+    const conv = state.conversations[convIdx];
+    if (!conv) return [];
+    const convDate = conv.created ? new Date(conv.created).getTime() : null;
+    // Which entities are in this conversation?
+    const myEntities = state.entities.filter(e =>
+      (e.conversations || []).includes(convIdx)
+    );
+    if (myEntities.length < 2) return [];
+    const myIdSet = new Set(myEntities.map(e => e.id));
+
+    // Score other conversations by entity overlap × IDF-ish rarity
+    const otherScores = {};
+    myEntities.forEach(e => {
+      const convs = e.conversations || [];
+      // rarity: less common entities count more
+      const weight = 1 / Math.max(1, Math.log2(1 + convs.length));
+      convs.forEach(ci => {
+        if (ci === convIdx) return;
+        otherScores[ci] = (otherScores[ci] || 0) + weight;
+      });
+    });
+
+    return Object.entries(otherScores)
+      .map(([ci, score]) => {
+        const c = state.conversations[parseInt(ci, 10)];
+        if (!c) return null;
+        const theirDate = c.created ? new Date(c.created).getTime() : null;
+        // Only show conversations that happened EARLIER
+        if (convDate && theirDate && theirDate >= convDate) return null;
+        return { convIdx: parseInt(ci, 10), score, conv: c, date: theirDate };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxResults);
+  }
+
+  // ─── Your AI Year ───
+  //  Monthly narrative built from existing stats. No LLM — just templates over
+  //  signal: top topic, entities added, dropped, conversation count, quality.
+  function buildYearNarrative() {
+    const byMonth = {};
+    state.conversations.forEach((c, ci) => {
+      if (!c.created) return;
+      const d = new Date(c.created);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!byMonth[key]) byMonth[key] = { convs: [], entityCounts: {}, key, date: new Date(d.getFullYear(), d.getMonth(), 1) };
+      byMonth[key].convs.push({ conv: c, idx: ci });
+    });
+    // Tally entity counts per month
+    state.entities.forEach(ent => {
+      (ent.conversations || []).forEach(ci => {
+        const c = state.conversations[ci];
+        if (!c?.created) return;
+        const d = new Date(c.created);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!byMonth[key]) return;
+        byMonth[key].entityCounts[ent.id] = (byMonth[key].entityCounts[ent.id] || 0) + 1;
+      });
+    });
+    const months = Object.values(byMonth).sort((a, b) => a.date - b.date);
+    let prevTop = null;
+    for (const m of months) {
+      const topEntries = Object.entries(m.entityCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      m.topEntities = topEntries.map(([id, n]) => {
+        const ent = state.entities.find(e => e.id === id);
+        return { name: ent?.name || id, n };
+      });
+      m.newTopic = m.topEntities[0] && prevTop && m.topEntities[0].name !== prevTop ? m.topEntities[0].name : null;
+      m.avgQuality = m.convs.length
+        ? Math.round(m.convs.reduce((s, x) => s + (state.qualityScores[x.idx] || 0), 0) / m.convs.length)
+        : 0;
+      m.label = m.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      prevTop = m.topEntities[0]?.name || prevTop;
+    }
+    return months;
+  }
+
+  function renderYearNarrative() {
+    const el = document.getElementById('year-container');
+    if (!el) return;
+    const months = buildYearNarrative();
+    if (!months.length) {
+      el.innerHTML = `
+        <div class="year-header">
+          <h2>Your AI Year</h2>
+          <p>Once you've imported conversations with dates, this view will tell the story of your AI journey month by month — what you explored, what emerged, what quietly dropped off.</p>
+        </div>
+      `;
+      return;
+    }
+    // Build prose for each month
+    const prevNames = new Set();
+    let totalConvs = 0;
+    months.forEach(m => totalConvs += m.convs.length);
+    const firstMonth = months[0];
+    const lastMonth = months[months.length - 1];
+    const spanMonths = months.length;
+
+    const blocks = months.map((m, i) => {
+      const top = m.topEntities;
+      const topNames = new Set(top.map(t => t.name));
+      const appearing = top.filter(t => !prevNames.has(t.name)).map(t => t.name);
+      const dropping = [...prevNames].filter(n => !topNames.has(n) && prevNames.has(n)).slice(0, 3);
+      const tier = qualityTier(m.avgQuality);
+      const prose = [];
+      if (top[0]) {
+        prose.push(`<strong>${esc(top[0].name)}</strong> dominated — ${top[0].n} ${top[0].n === 1 ? 'mention' : 'mentions'} across ${m.convs.length} conversation${m.convs.length === 1 ? '' : 's'}.`);
+      }
+      if (appearing.length && i > 0) {
+        prose.push(`New on your radar: ${appearing.slice(0, 3).map(n => `<em>${esc(n)}</em>`).join(', ')}.`);
+      }
+      if (dropping.length && i > 0) {
+        prose.push(`Quietly dropped: ${dropping.map(n => `<em>${esc(n)}</em>`).join(', ')}.`);
+      }
+      prose.push(`Avg quality: <span style="color:${tier.color};font-weight:600">${m.avgQuality}/100 (${tier.label})</span>.`);
+      prevNames.clear();
+      top.forEach(t => prevNames.add(t.name));
+
+      return `
+        <div class="year-month">
+          <div>
+            <div class="year-month-label">${m.label}</div>
+            <div class="year-month-sub">${m.convs.length} conv${m.convs.length === 1 ? '' : 's'}</div>
+          </div>
+          <div>
+            <div class="year-month-body">${prose.join(' ')}</div>
+            <div class="year-month-topics">
+              ${top.map((t, idx) => `<span class="year-topic-chip ${idx === 0 ? 'top' : ''}">${esc(t.name)} · ${t.n}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const span = spanMonths === 1
+      ? `Month of ${firstMonth.label}.`
+      : `From ${firstMonth.label} through ${lastMonth.label} · ${spanMonths} months.`;
+    const stashMsg = spanMonths < 3
+      ? ` <span style="color:var(--text-muted)">Come back after a few more months of chats — the narrative gets richer with time.</span>`
+      : '';
+    el.innerHTML = `
+      <div class="year-header">
+        <h2>Your AI Year</h2>
+        <p>${totalConvs} conversations. ${span} Here's the story, written automatically from patterns in your data — no LLM, no cloud.${stashMsg}</p>
+      </div>
+      ${blocks}
+    `;
+  }
+
+  // ─── Synaptic Mirror ───
+  //  A shareable, personal reveal of how you use AI. Three layers:
+  //    1. Personality stats + archetype (computed from user messages)
+  //    2. Hallucination detector (regex phrase patterns on assistant messages)
+  //    3. Graph-walk time-lapse (animate existing graph by entity birthday)
+  //  Everything is computed locally from state.conversations.
+
+  // Hallucination phrase patterns — if an assistant message trips multiple, it's suspicious.
+  const HALLUC_PATTERNS = [
+    { re: /\bas of (?:my )?(?:last )?(?:knowledge|training|update|data)(?: cutoff)?\b/i, label: 'knowledge cutoff' },
+    { re: /\b(?:i believe|i think|i'm not (?:entirely |100% )?sure|i'm not certain)\b/i, label: 'uncertainty hedge' },
+    { re: /\b(?:typically|usually|generally|in most cases|most likely|should (?:work|be))\b/i, label: 'vague generality' },
+    { re: /\b(?:it'?s possible that|it may be|it might be|may or may not|could be that)\b/i, label: 'speculative' },
+    { re: /\b(?:please (?:verify|double[- ]check|confirm)|refer to (?:the )?official (?:docs?|documentation)|check the (?:latest )?docs?)\b/i, label: 'verify-yourself disclaimer' },
+    { re: /\bhowever,? (?:this|the behavior|it) (?:may|might|could) (?:have )?(?:changed?|vary|varies|varied)\b/i, label: 'may-have-changed' },
+    { re: /\bi (?:don'?t|do not) have (?:access to|the ability to|real[- ]time)\b/i, label: 'no-access disclaimer' },
+    { re: /\b(?:without (?:more|additional) (?:context|information)|it would help if|i'?d need to)\b/i, label: 'needs more info' },
+    { re: /\b(?:generally speaking|broadly speaking|loosely speaking|roughly speaking)\b/i, label: 'broad stroke' },
+    { re: /\bas an ai (?:language )?model\b/i, label: 'as-an-AI' },
+  ];
+
+  function detectHallucinations(text) {
+    if (!text || typeof text !== 'string') return { score: 0, reasons: [] };
+    const reasons = [];
+    for (const p of HALLUC_PATTERNS) {
+      if (p.re.test(text)) reasons.push(p.label);
+    }
+    // Duplicate hedging in same message counts extra
+    const hedgeCount = (text.match(/\b(?:maybe|perhaps|possibly|likely|approximately|roughly|around|about|somewhere)\b/gi) || []).length;
+    if (hedgeCount >= 4) reasons.push(`${hedgeCount} hedge words`);
+    return { score: reasons.length, reasons };
+  }
+
+  // Personal tics / filler words we count in user messages.
+  const FILLER_WORDS = [
+    'actually', 'basically', 'just', 'literally', 'honestly', 'really', 'pretty',
+    'kinda', 'maybe', 'probably', 'essentially', 'obviously', 'simply', 'perhaps',
+    'apparently', 'technically'
+  ];
+
+  function computePersonalityStats() {
+    const convs = state.conversations || [];
+    if (!convs.length) return null;
+
+    let userMsgCount = 0, astMsgCount = 0;
+    let userWordTotal = 0, astWordTotal = 0;
+    let questionMsgs = 0, politeMsgs = 0, frustrationMsgs = 0;
+    const vocab = new Set();
+    const fillerCounts = {};
+    FILLER_WORDS.forEach(f => fillerCounts[f] = 0);
+    const hourBuckets = Array(24).fill(0);
+    const dayBuckets = Array(7).fill(0);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    let nightOwlMsgs = 0;
+    let hasTimestamps = false;
+    let completedConvs = 0, abandonedMsgTotal = 0, abandonedConvs = 0;
+    const hallucinations = []; // { convIdx, convTitle, msgIdx, text, reasons, score }
+    let longestConv = { msgs: 0, title: '', idx: -1 };
+    const POLITE_RE = /\b(please|thanks?|thank you|appreciate(?:d| it)?|grateful)\b/i;
+    const FRUSTRATION_RE = /(\b(?:ugh|wtf|wtf\?|argh|damn it|this is (?:wrong|broken)|that'?s wrong|no,? that'?s not|still (?:broken|not working|doesn'?t work))\b|\?\?\?|(?:^|\s)NO(?:$|\s)|!!)/i;
+
+    convs.forEach((conv, ci) => {
+      const msgs = conv.messages || [];
+      if (msgs.length > longestConv.msgs) {
+        longestConv = { msgs: msgs.length, title: conv.title || 'Untitled', idx: ci };
+      }
+      let lastHasCompletion = false;
+      msgs.forEach((m, mi) => {
+        const role = (m.role || '').toLowerCase();
+        const text = typeof m.content === 'string' ? m.content : (m.text || '');
+        if (!text) return;
+
+        if (role === 'user') {
+          userMsgCount++;
+          const words = text.toLowerCase().match(/\b[a-z']{2,}\b/g) || [];
+          userWordTotal += words.length;
+          words.forEach(w => vocab.add(w));
+          FILLER_WORDS.forEach(f => {
+            const re = new RegExp('\\b' + f + '\\b', 'gi');
+            const matches = text.match(re);
+            if (matches) fillerCounts[f] += matches.length;
+          });
+          if (QUESTION_RE.test(text)) questionMsgs++;
+          if (POLITE_RE.test(text)) politeMsgs++;
+          if (FRUSTRATION_RE.test(text)) frustrationMsgs++;
+          const ts = m.created_at || m.timestamp || m.create_time;
+          if (ts) {
+            const d = new Date(typeof ts === 'number' && ts < 1e12 ? ts * 1000 : ts);
+            if (!isNaN(d.getTime())) {
+              hasTimestamps = true;
+              hourBuckets[d.getHours()]++;
+              dayBuckets[d.getDay()]++;
+              const h = d.getHours();
+              if (h >= 22 || h < 5) nightOwlMsgs++;
+            }
+          }
+        } else if (role === 'assistant' || role === 'model') {
+          astMsgCount++;
+          const words = text.toLowerCase().match(/\b[a-z']{2,}\b/g) || [];
+          astWordTotal += words.length;
+          const h = detectHallucinations(text);
+          if (h.score >= 2) {
+            hallucinations.push({
+              convIdx: ci, convTitle: conv.title || 'Untitled',
+              msgIdx: mi, text: text, reasons: h.reasons, score: h.score
+            });
+          }
+          if (COMPLETION_RE.test(text)) lastHasCompletion = true;
+        }
+      });
+      if (msgs.length >= 2) {
+        if (lastHasCompletion) completedConvs++;
+        else { abandonedConvs++; abandonedMsgTotal += msgs.length; }
+      }
+    });
+
+    if (userMsgCount === 0) return null;
+
+    // Sort fillers desc
+    const topFillers = Object.entries(fillerCounts)
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([word, count]) => ({ word, count }));
+
+    // Top hallucinations
+    const topHallucinations = hallucinations
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(h => ({
+        ...h,
+        snippet: truncate(h.text.replace(/\s+/g, ' '), 180)
+      }));
+
+    // Peak hour / day
+    let peakHour = -1, peakHourCount = 0;
+    hourBuckets.forEach((n, i) => { if (n > peakHourCount) { peakHourCount = n; peakHour = i; } });
+    let peakDay = -1, peakDayCount = 0;
+    dayBuckets.forEach((n, i) => { if (n > peakDayCount) { peakDayCount = n; peakDay = i; } });
+
+    const avgUserWords = userMsgCount ? userWordTotal / userMsgCount : 0;
+    const avgAstWords = astMsgCount ? astWordTotal / astMsgCount : 0;
+    const totalConvsWithMsgs = completedConvs + abandonedConvs;
+    const completionPct = totalConvsWithMsgs ? Math.round((completedConvs / totalConvsWithMsgs) * 100) : 0;
+    const avgMsgsPerConv = convs.length ? (convs.reduce((s, c) => s + (c.messages?.length || 0), 0) / convs.length) : 0;
+    const politenessPct = userMsgCount ? Math.round((politeMsgs / userMsgCount) * 100) : 0;
+    const questionPct = userMsgCount ? Math.round((questionMsgs / userMsgCount) * 100) : 0;
+    const frustrationPct = userMsgCount ? Math.round((frustrationMsgs / userMsgCount) * 100) : 0;
+    const nightOwlPct = (hasTimestamps && userMsgCount) ? Math.round((nightOwlMsgs / userMsgCount) * 100) : 0;
+    const abandonedAvg = abandonedConvs ? Math.round(abandonedMsgTotal / abandonedConvs) : 0;
+
+    return {
+      userMsgCount, astMsgCount,
+      convCount: convs.length,
+      entityCount: (state.entities || []).length,
+      vocabSize: vocab.size,
+      avgUserWords: Math.round(avgUserWords * 10) / 10,
+      avgAstWords: Math.round(avgAstWords * 10) / 10,
+      avgMsgsPerConv: Math.round(avgMsgsPerConv * 10) / 10,
+      politenessPct, questionPct, frustrationPct, completionPct, nightOwlPct,
+      peakHour, peakDay, peakDayLabel: peakDay >= 0 ? dayNames[peakDay] : '—',
+      hasTimestamps,
+      topFillers,
+      topHallucinations,
+      hallucinationCount: hallucinations.length,
+      abandonedAvg, abandonedConvs,
+      longestConv,
+      archetype: null // filled by pickArchetype
+    };
+  }
+
+  // Archetypes — eight flavors, scored on stats. Highest score wins.
+  const ARCHETYPES = [
+    {
+      id: 'midnight-debugger', glyph: '🌙', title: 'The Midnight Debugger',
+      tagline: 'You and the AI meet after the world goes to bed.',
+      score: s => (s.nightOwlPct >= 30 ? 3 : 0) + (s.frustrationPct >= 5 ? 2 : 0) + (s.peakHour >= 22 || s.peakHour <= 4 ? 2 : 0)
+    },
+    {
+      id: 'patient-perfectionist', glyph: '🪄', title: 'The Patient Perfectionist',
+      tagline: 'Long messages, polite tone, follow-through. You finish what you start.',
+      score: s => (s.avgUserWords >= 25 ? 2 : 0) + (s.completionPct >= 60 ? 2 : 0) + (s.politenessPct >= 15 ? 2 : 0)
+    },
+    {
+      id: 'power-user', glyph: '⚡', title: 'The Power User',
+      tagline: 'Short commands, high volume, no small talk. The AI is a tool, not a friend.',
+      score: s => (s.avgUserWords <= 12 ? 2 : 0) + (s.userMsgCount >= 300 ? 2 : 0) + (s.politenessPct <= 5 ? 2 : 0)
+    },
+    {
+      id: 'explorer', glyph: '🧭', title: 'The Explorer',
+      tagline: 'Dozens of one-off conversations. You follow curiosity wherever it leads.',
+      score: s => (s.convCount >= 40 ? 2 : 0) + (s.avgMsgsPerConv <= 4 ? 2 : 0) + (s.completionPct <= 35 ? 1 : 0) + (s.entityCount >= 80 ? 2 : 0)
+    },
+    {
+      id: 'marathoner', glyph: '🏃', title: 'The Marathoner',
+      tagline: 'Few conversations, but they go deep. Every thread is a journey.',
+      score: s => (s.avgMsgsPerConv >= 15 ? 3 : 0) + (s.avgUserWords >= 20 ? 1 : 0) + (s.convCount <= 40 ? 1 : 0) + (s.longestConv.msgs >= 30 ? 2 : 0)
+    },
+    {
+      id: 'student', glyph: '🎓', title: 'The Student',
+      tagline: 'Question after question. You come to learn, not to instruct.',
+      score: s => (s.questionPct >= 35 ? 3 : 0) + (s.completionPct >= 45 ? 1 : 0) + (s.politenessPct >= 10 ? 1 : 0)
+    },
+    {
+      id: 'architect', glyph: '🏛️', title: 'The Architect',
+      tagline: 'Long, deliberate prompts. You design before you type.',
+      score: s => (s.avgUserWords >= 35 ? 3 : 0) + (s.avgMsgsPerConv >= 6 ? 1 : 0) + (s.questionPct <= 25 ? 1 : 0)
+    },
+    {
+      id: 'dabbler', glyph: '🎨', title: 'The Dabbler',
+      tagline: 'A little bit of everything — a generalist of infinite curiosity.',
+      score: s => (s.entityCount >= 40 ? 2 : 0) + (s.convCount >= 20 ? 1 : 0) + (s.avgMsgsPerConv <= 5 ? 1 : 0)
+    },
+  ];
+
+  function pickArchetype(stats) {
+    let best = ARCHETYPES[0], bestScore = -1;
+    for (const a of ARCHETYPES) {
+      const sc = a.score(stats);
+      if (sc > bestScore) { bestScore = sc; best = a; }
+    }
+    if (bestScore <= 0) {
+      return { id: 'voyager', glyph: '🌱', title: 'The Voyager', tagline: 'Just getting started. Your pattern will emerge soon.' };
+    }
+    return { id: best.id, glyph: best.glyph, title: best.title, tagline: best.tagline };
+  }
+
+  function formatHour(h) {
+    if (h < 0) return '—';
+    const ap = h < 12 ? 'am' : 'pm';
+    const hh = h % 12 === 0 ? 12 : h % 12;
+    return `${hh}${ap}`;
+  }
+
+  function openMirror() {
+    const stats = computePersonalityStats();
+    if (!stats) {
+      showToast('Import some conversations first to see your Mirror.');
+      return;
+    }
+    stats.archetype = pickArchetype(stats);
+    state._mirrorStats = stats;
+    renderMirror(stats);
+    document.getElementById('mirror-modal').classList.add('open');
+    requestAnimationFrame(() => animateMirrorGraphWalk());
+  }
+
+  function closeMirror() {
+    document.getElementById('mirror-modal').classList.remove('open');
+    if (state._mirrorWalkRaf) {
+      cancelAnimationFrame(state._mirrorWalkRaf);
+      state._mirrorWalkRaf = null;
+    }
+  }
+
+  function renderMirror(s) {
+    const body = document.getElementById('mirror-body');
+    const archetype = s.archetype;
+    const peakTxt = s.hasTimestamps
+      ? `${formatHour(s.peakHour)} on ${s.peakDayLabel}`
+      : 'timestamps missing';
+    const fillerHtml = s.topFillers.length
+      ? s.topFillers.map(f => `<span class="mirror-filler">${esc(f.word)}<span class="mirror-filler-count">${f.count}</span></span>`).join('')
+      : '<span class="mirror-filler" style="opacity:0.6">No strong tics detected — you keep it clean.</span>';
+
+    const hallucHtml = s.topHallucinations.length
+      ? s.topHallucinations.map(h => `
+          <div class="mirror-halluc-item">
+            <div class="mirror-halluc-head">
+              <span>⚠</span><span>Flagged · ${h.score} suspicious phrase${h.score === 1 ? '' : 's'}</span>
+              <span style="margin-left:auto;color:var(--text-muted);font-weight:500">in "${esc(truncate(h.convTitle, 40))}"</span>
+            </div>
+            <div class="mirror-halluc-quote">${esc(h.snippet)}</div>
+            <div class="mirror-halluc-reasons">${h.reasons.map(r => `<span class="mirror-halluc-tag">${esc(r)}</span>`).join('')}</div>
+          </div>
+        `).join('')
+      : `<div class="mirror-halluc-item" style="background:rgba(6,214,160,0.08);border-color:rgba(6,214,160,0.25)">
+           <div class="mirror-halluc-head" style="color:#06d6a0"><span>✓</span><span>Clean record</span></div>
+           <div style="color:var(--text-secondary);font-size:12px">We didn't spot any classic hallucination phrases ("as of my training data", "please verify with official docs", etc.) in your assistant responses. Well-sourced AI.</div>
+         </div>`;
+
+    const statTiles = [
+      { label: 'Conversations', value: s.convCount.toLocaleString(), sub: `${s.userMsgCount.toLocaleString()} messages sent`, highlight: true },
+      { label: 'Avg message length', value: `${s.avgUserWords}w`, sub: s.avgUserWords >= 25 ? 'You write essays.' : s.avgUserWords >= 15 ? 'Clear and detailed.' : 'Short & punchy.' },
+      { label: 'Vocabulary', value: s.vocabSize.toLocaleString(), sub: 'unique words used' },
+      { label: 'Depth', value: `${s.avgMsgsPerConv}`, sub: 'msgs per conversation' },
+      { label: 'Completion rate', value: `${s.completionPct}%`, sub: `${s.abandonedConvs} convs left hanging` },
+      { label: 'Question ratio', value: `${s.questionPct}%`, sub: s.questionPct >= 40 ? 'Eternal student.' : 'You lead more than you ask.' },
+      { label: 'Politeness', value: `${s.politenessPct}%`, sub: s.politenessPct >= 15 ? '"Please" and "thanks" 👋' : 'No small talk.' },
+      { label: 'Peak activity', value: peakTxt, sub: s.hasTimestamps ? `${s.nightOwlPct}% of chats after 10pm` : 'no date info in export' },
+      { label: 'Entities mapped', value: s.entityCount.toLocaleString(), sub: 'topics in your graph' },
+      { label: 'Longest thread', value: `${s.longestConv.msgs} msgs`, sub: truncate(s.longestConv.title, 30) },
+    ].filter(t => t.value != null && t.value !== 'NaN');
+
+    body.innerHTML = `
+      <div class="mirror-hero">
+        <div class="mirror-eyebrow">Your Synaptic Mirror</div>
+        <div class="mirror-headline">${esc(archetype.title)}</div>
+        <div class="mirror-subtitle">${esc(archetype.tagline)}</div>
+        <div class="mirror-archetype"><span class="mirror-archetype-glyph">${archetype.glyph}</span>${esc(archetype.title)}</div>
+      </div>
+
+      <div class="mirror-stats-grid">
+        ${statTiles.map(t => `
+          <div class="mirror-stat ${t.highlight ? 'highlight' : ''}">
+            <div class="mirror-stat-label">${esc(t.label)}</div>
+            <div class="mirror-stat-value">${esc(String(t.value))}</div>
+            <div class="mirror-stat-sub">${esc(t.sub || '')}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="mirror-section">
+        <div class="mirror-section-title">Your tells</div>
+        <div class="mirror-fillers">${fillerHtml}</div>
+      </div>
+
+      <div class="mirror-section">
+        <div class="mirror-section-title">Graph walk · your knowledge grew like this</div>
+        <div class="mirror-walk" id="mirror-walk">
+          <svg id="mirror-walk-svg"></svg>
+          <div class="mirror-walk-caption" id="mirror-walk-caption">Starting…</div>
+        </div>
+      </div>
+
+      <div class="mirror-section">
+        <div class="mirror-section-title">Hallucination Hall of Fame${s.hallucinationCount ? ` · ${s.hallucinationCount} flagged` : ''}</div>
+        <div class="mirror-halluc-list">${hallucHtml}</div>
+      </div>
+    `;
+  }
+
+  // Mini time-lapse of the knowledge graph inside the Mirror.
+  //  - Compute a "birthday" (earliest conv timestamp) for each entity.
+  //  - Run a quick force sim on a mini SVG.
+  //  - Animate a time cursor, fading nodes/links in as their birthday passes.
+  function animateMirrorGraphWalk() {
+    const svgEl = document.getElementById('mirror-walk-svg');
+    const captionEl = document.getElementById('mirror-walk-caption');
+    if (!svgEl || !captionEl || !window.d3) return;
+
+    const container = document.getElementById('mirror-walk');
+    const width = container.clientWidth - 20;
+    const height = 240;
+
+    // Compute birthdays: entity -> earliest ts from state.conversations it appears in.
+    const entityBirthday = {};
+    const convTimes = state.conversations.map(c => {
+      const msgs = c.messages || [];
+      for (const m of msgs) {
+        const ts = m.created_at || m.timestamp || m.create_time;
+        if (ts) {
+          const d = new Date(typeof ts === 'number' && ts < 1e12 ? ts * 1000 : ts);
+          if (!isNaN(d.getTime())) return d.getTime();
+        }
+      }
+      return null;
+    });
+
+    state.entities.forEach(e => {
+      let earliest = Infinity;
+      (e.conversations || []).forEach(ci => {
+        const t = convTimes[ci];
+        if (t != null && t < earliest) earliest = t;
+      });
+      entityBirthday[e.id] = earliest === Infinity ? 0 : earliest;
+    });
+
+    // Determine time range.
+    const bdays = Object.values(entityBirthday).filter(t => t > 0);
+    const minT = bdays.length ? Math.min(...bdays) : 0;
+    const maxT = bdays.length ? Math.max(...bdays) : 1;
+
+    // Clone entities/links (so we don't disturb main simulation).
+    const nodes = state.entities.map(e => ({
+      id: e.id, count: e.count, type: e.type, cluster: e.cluster,
+      birthday: entityBirthday[e.id] || minT
+    }));
+    const links = state.links.map(l => ({
+      source: typeof l.source === 'object' ? l.source.id : l.source,
+      target: typeof l.target === 'object' ? l.target.id : l.target,
+      weight: l.weight || 1
+    })).filter(l => nodes.find(n => n.id === l.source) && nodes.find(n => n.id === l.target));
+
+    // Render SVG skeleton.
+    const svg = d3.select(svgEl);
+    svg.selectAll('*').remove();
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+    const gLinks = svg.append('g');
+    const gNodes = svg.append('g');
+
+    const maxCount = Math.max(1, ...nodes.map(n => n.count));
+    const rScale = d3.scaleSqrt().domain([1, maxCount]).range([2.5, 12]);
+
+    // Quick force sim.
+    const sim = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(40).strength(0.2))
+      .force('charge', d3.forceManyBody().strength(-60))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(d => rScale(d.count) + 2))
+      .alpha(1).alphaDecay(0.04);
+
+    const lineSel = gLinks.selectAll('line').data(links).join('line')
+      .attr('stroke', 'rgba(139, 92, 246, 0.3)')
+      .attr('stroke-width', 1)
+      .attr('opacity', 0);
+
+    const circleSel = gNodes.selectAll('circle').data(nodes).join('circle')
+      .attr('r', d => rScale(d.count))
+      .attr('fill', d => COLORS[d.type] || COLORS.default)
+      .attr('opacity', 0)
+      .attr('stroke', d => COLORS[d.type] || COLORS.default)
+      .attr('stroke-width', 1)
+      .attr('stroke-opacity', 0.5);
+
+    sim.on('tick', () => {
+      circleSel.attr('cx', d => d.x).attr('cy', d => d.y);
+      lineSel
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    });
+
+    // Let sim cool for a bit, then run the time cursor.
+    setTimeout(() => sim.alphaTarget(0).alpha(0.1).restart(), 800);
+
+    // Walk time from minT to maxT over ~8s, looping.
+    const DURATION = 8000;
+    let start = performance.now();
+
+    function fmtDate(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+    }
+
+    function frame(now) {
+      const t = ((now - start) % DURATION) / DURATION;
+      const cursor = minT + (maxT - minT) * t;
+      circleSel.attr('opacity', d => d.birthday <= cursor ? 0.9 : 0.05);
+      lineSel.attr('opacity', l => {
+        const sbd = (l.source.birthday != null ? l.source.birthday : entityBirthday[l.source.id] || minT);
+        const tbd = (l.target.birthday != null ? l.target.birthday : entityBirthday[l.target.id] || minT);
+        return (sbd <= cursor && tbd <= cursor) ? 0.35 : 0;
+      });
+      if (bdays.length) captionEl.textContent = fmtDate(cursor);
+      else captionEl.textContent = `${nodes.length} entities (no dates to walk)`;
+      state._mirrorWalkRaf = requestAnimationFrame(frame);
+    }
+    state._mirrorWalkRaf = requestAnimationFrame(frame);
+  }
+
+  // Export the Mirror as a PNG by redrawing key content to a canvas.
+  //  We hand-draw instead of using html-to-canvas so zero deps + perfect fidelity.
+  function exportMirrorAsPNG() {
+    const s = state._mirrorStats;
+    if (!s) return;
+    const W = 1200, H = 1600;
+    const canvas = document.createElement('canvas');
+    canvas.width = W * 2; canvas.height = H * 2; // retina
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+
+    // Gradient background
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#0e1330');
+    bg.addColorStop(0.5, '#1a0e30');
+    bg.addColorStop(1, '#230a2e');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Decorative blob
+    const blob = ctx.createRadialGradient(W * 0.85, 200, 0, W * 0.85, 200, 400);
+    blob.addColorStop(0, 'rgba(139, 92, 246, 0.25)');
+    blob.addColorStop(1, 'rgba(139, 92, 246, 0)');
+    ctx.fillStyle = blob;
+    ctx.fillRect(0, 0, W, H);
+
+    // Header
+    ctx.fillStyle = '#8b5cf6';
+    ctx.font = '600 18px -apple-system, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('YOUR SYNAPTIC MIRROR', W / 2, 110);
+
+    // Archetype title (gradient text via clip)
+    const a = s.archetype;
+    ctx.textAlign = 'center';
+    ctx.font = '800 72px -apple-system, system-ui, sans-serif';
+    const titleGrad = ctx.createLinearGradient(W / 2 - 400, 0, W / 2 + 400, 0);
+    titleGrad.addColorStop(0, '#4e7cff');
+    titleGrad.addColorStop(0.5, '#8b5cf6');
+    titleGrad.addColorStop(1, '#ec4899');
+    ctx.fillStyle = titleGrad;
+    ctx.fillText(a.title, W / 2, 200);
+
+    ctx.fillStyle = '#a8b0cf';
+    ctx.font = '400 22px -apple-system, system-ui, sans-serif';
+    // Wrap tagline
+    const tagline = a.tagline;
+    const maxW = 900;
+    const words = tagline.split(' ');
+    let line = '', y = 248;
+    for (const w of words) {
+      const test = line + w + ' ';
+      if (ctx.measureText(test).width > maxW) {
+        ctx.fillText(line.trim(), W / 2, y);
+        y += 32; line = w + ' ';
+      } else line = test;
+    }
+    if (line) ctx.fillText(line.trim(), W / 2, y);
+
+    // Stat tiles grid (2 rows × 3 cols)
+    const stats = [
+      { label: 'Conversations', v: s.convCount.toLocaleString() },
+      { label: 'Messages sent', v: s.userMsgCount.toLocaleString() },
+      { label: 'Avg words / msg', v: `${s.avgUserWords}` },
+      { label: 'Unique words', v: s.vocabSize.toLocaleString() },
+      { label: 'Entities mapped', v: s.entityCount.toLocaleString() },
+      { label: 'Completion', v: `${s.completionPct}%` },
+    ];
+    const tileW = 340, tileH = 140, gap = 28;
+    const startX = (W - (tileW * 3 + gap * 2)) / 2;
+    let gy = y + 80;
+    stats.forEach((st, i) => {
+      const col = i % 3, row = Math.floor(i / 3);
+      const gx = startX + col * (tileW + gap);
+      const gyy = gy + row * (tileH + gap);
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      roundRect(ctx, gx, gyy, tileW, tileH, 16, true, true);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#737892';
+      ctx.font = '600 13px -apple-system, system-ui, sans-serif';
+      ctx.fillText(st.label.toUpperCase(), gx + 22, gyy + 36);
+      ctx.fillStyle = '#e6e8f0';
+      ctx.font = '800 44px -apple-system, system-ui, sans-serif';
+      ctx.fillText(st.v, gx + 22, gyy + 92);
+    });
+
+    // Fillers block
+    const fy = gy + tileH * 2 + gap + 80;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#8b5cf6';
+    ctx.font = '700 16px -apple-system, system-ui, sans-serif';
+    ctx.fillText('YOUR TELLS', startX, fy);
+    ctx.fillStyle = '#e6e8f0';
+    ctx.font = '500 22px -apple-system, system-ui, sans-serif';
+    let fx = startX, fyy = fy + 40;
+    if (s.topFillers.length) {
+      s.topFillers.forEach(f => {
+        const txt = `${f.word} · ${f.count}`;
+        const w = ctx.measureText(txt).width + 40;
+        if (fx + w > W - startX) { fx = startX; fyy += 52; }
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.18)';
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
+        roundRect(ctx, fx, fyy - 28, w, 38, 19, true, true);
+        ctx.fillStyle = '#e6e8f0';
+        ctx.fillText(txt, fx + 20, fyy - 2);
+        fx += w + 10;
+      });
+    } else {
+      ctx.fillStyle = '#a8b0cf';
+      ctx.fillText('No strong tics detected — you keep it clean.', startX, fyy);
+    }
+
+    // Hallucination summary
+    const hy = fyy + 80;
+    ctx.fillStyle = '#8b5cf6';
+    ctx.font = '700 16px -apple-system, system-ui, sans-serif';
+    ctx.fillText(`HALLUCINATION FLAGS · ${s.hallucinationCount}`, startX, hy);
+    ctx.fillStyle = '#e6e8f0';
+    ctx.font = '500 22px -apple-system, system-ui, sans-serif';
+    if (s.hallucinationCount === 0) {
+      ctx.fillStyle = '#06d6a0';
+      ctx.fillText('Clean record — no classic AI hedge phrases spotted.', startX, hy + 42);
+    } else {
+      ctx.fillStyle = '#a8b0cf';
+      ctx.font = '400 20px -apple-system, system-ui, sans-serif';
+      const sample = s.topHallucinations[0];
+      ctx.fillText(`Top offender: "${truncate(sample.convTitle, 60)}"`, startX, hy + 42);
+      ctx.fillStyle = '#ec4899';
+      ctx.font = '500 18px -apple-system, system-ui, sans-serif';
+      ctx.fillText(sample.reasons.slice(0, 3).join(' · '), startX, hy + 72);
+    }
+
+    // Footer
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#737892';
+    ctx.font = '500 16px -apple-system, system-ui, sans-serif';
+    ctx.fillText('Generated locally · no data ever left my browser · synaptic', W / 2, H - 60);
+
+    // Export
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a2 = document.createElement('a');
+      a2.href = url;
+      a2.download = `synaptic-mirror-${Date.now()}.png`;
+      document.body.appendChild(a2); a2.click(); a2.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Mirror downloaded — ready to share.');
+    }, 'image/png');
+  }
+
+  function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+  }
+
+  function copyMirrorSummary() {
+    const s = state._mirrorStats;
+    if (!s) return;
+    const lines = [
+      `🪞 My Synaptic Mirror`,
+      `${s.archetype.glyph} ${s.archetype.title} — ${s.archetype.tagline}`,
+      ``,
+      `· ${s.convCount} conversations, ${s.userMsgCount.toLocaleString()} messages sent`,
+      `· avg message: ${s.avgUserWords} words · vocab: ${s.vocabSize.toLocaleString()} unique words`,
+      `· completion rate: ${s.completionPct}% · ${s.questionPct}% of my messages are questions`,
+      s.hasTimestamps ? `· peak: ${formatHour(s.peakHour)} on ${s.peakDayLabel} · ${s.nightOwlPct}% after 10pm` : '',
+      s.topFillers.length ? `· tells: ${s.topFillers.map(f => `"${f.word}" (${f.count})`).join(', ')}` : '',
+      s.hallucinationCount ? `· ${s.hallucinationCount} hallucination phrases caught in AI responses` : `· zero classic hallucination phrases — clean record`,
+      ``,
+      `Generated locally by Synaptic.`
+    ].filter(Boolean);
+    const text = lines.join('\n');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('mirror-copy-btn');
+        if (btn) {
+          btn.classList.add('copied');
+          const old = btn.textContent;
+          btn.textContent = 'Copied ✓';
+          setTimeout(() => { btn.classList.remove('copied'); btn.textContent = old; }, 1600);
+        }
+      });
+    }
+  }
+
+  // ─── Loose Ends Detector ───
+  //  Pure heuristic, no ML. Detects four kinds of unresolved threads:
+  //   1. hanging-question     — conversation ends on a user question with no resolution markers
+  //   2. follow-up-promise    — user said "I'll try this and get back" but no confirmation
+  //   3. repeated-unresolved  — an entity discussed across 3+ conversations with no completion signal
+  //   4. dormant              — high-frequency topic gone silent for 60+ days without resolution
+  const COMPLETION_RE = /\b(it works|that works|that worked|worked like a charm|fixed(?: it)?|solved|resolved(?: it)?|all good|perfect(?:,? thanks)?|that did it|got it working|finally got it|figured it out|up and running|problem solved|great,? thanks|thanks,? that|that was it|nailed it|success)\b/i;
+  const FOLLOW_UP_RE = /\b(i'?ll (?:try|test|check|come back|report back|circle back|let you know|get back|do that|give (?:this|that) a (?:go|shot|try))|let me (?:try|check|test|get back|look into)|will (?:try|test|get back|report|investigate)|going to (?:try|test)|gonna try)\b/i;
+  const QUESTION_RE = /\?\s*$/;
+
+  function truncate(s, n) {
+    if (!s) return '';
+    s = s.trim().replace(/\s+/g, ' ');
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  function daysBetween(a, b) {
+    return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function detectLooseEnds() {
+    const results = [];
+    const seenConvTypes = new Set(); // dedupe: one signal per (convIdx, type)
+    const now = new Date();
+
+    state.conversations.forEach((conv, ci) => {
+      const msgs = conv.messages || [];
+      if (msgs.length < 2) return;
+
+      const allText = msgs.map(m => m.content || '').join(' \n ');
+      const hasCompletion = COMPLETION_RE.test(allText);
+
+      // Signal 1: Hanging question — last message is user AND ends with '?'
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg && lastMsg.role === 'user' && QUESTION_RE.test(lastMsg.content || '') && !hasCompletion) {
+        const key = `${ci}:hanging-question`;
+        if (!seenConvTypes.has(key)) {
+          seenConvTypes.add(key);
+          results.push({
+            id: `le-hq-${ci}`,
+            type: 'hanging-question',
+            title: conv.title || 'Untitled',
+            convIdx: ci,
+            msgIdx: msgs.length - 1,
+            snippet: truncate(lastMsg.content, 260),
+            why: 'Conversation ended on your question with no follow-up.',
+            created: conv.created || null,
+            severity: 0.85
+          });
+        }
+      }
+
+      // Signal 2: Follow-up promise — find last user message with promise phrase
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const m = msgs[i];
+        if (m.role !== 'user') continue;
+        if (FOLLOW_UP_RE.test(m.content || '')) {
+          // Check if any later user message in THIS conversation contains completion
+          const laterResolved = msgs.slice(i + 1).some(lm =>
+            lm.role === 'user' && COMPLETION_RE.test(lm.content || '')
+          );
+          if (!laterResolved) {
+            const key = `${ci}:follow-up-promise`;
+            if (!seenConvTypes.has(key)) {
+              seenConvTypes.add(key);
+              results.push({
+                id: `le-fu-${ci}`,
+                type: 'follow-up-promise',
+                title: conv.title || 'Untitled',
+                convIdx: ci,
+                msgIdx: i,
+                snippet: truncate(m.content, 260),
+                why: 'You said you\'d try this and report back — no confirmation yet.',
+                created: conv.created || null,
+                severity: 0.7
+              });
+            }
+          }
+          break; // only last follow-up promise per conv
+        }
+        // Don't scan past latest user turn
+        if (m.role === 'user') break;
+      }
+    });
+
+    // Signal 3 + 4: Repeated-unresolved and dormant topics
+    state.entities.forEach(ent => {
+      if (ent.conversations.length < 3) return;
+      const convs = ent.conversations.map(ci => state.conversations[ci]).filter(Boolean);
+      const fullText = convs.flatMap(c => (c.messages || []).map(m => m.content || '')).join(' \n ');
+      const hasCompletion = COMPLETION_RE.test(fullText);
+      if (hasCompletion) return;
+
+      // Last activity date for this entity
+      const dates = convs.map(c => c.created ? new Date(c.created) : null).filter(Boolean);
+      const lastDate = dates.length ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
+      const daysSince = lastDate ? daysBetween(lastDate, now) : null;
+      const isDormant = daysSince !== null && daysSince >= 60 && ent.count >= 5;
+
+      results.push({
+        id: isDormant ? `le-do-${ent.id}` : `le-ru-${ent.id}`,
+        type: isDormant ? 'dormant' : 'repeated-unresolved',
+        title: ent.name,
+        entityId: ent.id,
+        conversationIdxs: ent.conversations,
+        mentions: ent.count,
+        snippet: isDormant
+          ? `Discussed ${ent.count} times across ${ent.conversations.length} conversations — gone silent for ${daysSince} days with no resolution noted.`
+          : `You've asked about "${ent.name}" across ${ent.conversations.length} conversations (${ent.count} mentions) with no clear resolution signal.`,
+        why: isDormant
+          ? 'Hot topic that went cold — possibly abandoned.'
+          : 'Recurring topic with no "it works" / "solved" signal.',
+        created: lastDate ? lastDate.toISOString() : null,
+        severity: isDormant
+          ? Math.min(1, 0.75 + (ent.conversations.length / 20))
+          : Math.min(0.95, 0.55 + (ent.conversations.length / 15))
+      });
+    });
+
+    // Sort: severity desc, then recency desc
+    results.sort((a, b) => {
+      if (b.severity !== a.severity) return b.severity - a.severity;
+      const ad = a.created ? new Date(a.created).getTime() : 0;
+      const bd = b.created ? new Date(b.created).getTime() : 0;
+      return bd - ad;
+    });
+
+    return results.slice(0, 100); // cap to avoid pathological cases
+  }
+
+  // ─── Context Bundles ───
+  //  Turn a dead archive into a resumable memory layer.
+  //  Given an entity / conversation / loose-end, produce a Markdown brief you
+  //  can paste into a fresh ChatGPT / Claude / Cursor chat to pick up exactly
+  //  where you left off. Pure template + heuristic extraction — no LLM.
+  const DECISION_RE = /\b(i'?d recommend|i'?d suggest|you (?:should|could|can)|recommend(?:ed)?(?: using)?|(?:let'?s|i'?ll) go with|going to use|switch(?:ed|ing)? to|chose|chose to|decided to|the plan is|best to use|use (?:[A-Z][\w.+-]*|[a-z][\w.+-]{3,})|set up|start with)/i;
+  const CODE_BLOCK_RE = /```(\w*)\r?\n([\s\S]*?)```/g;
+  const PROMISE_RE = /\b(i'?ll (?:try|test|check|come back|report back|circle back|let you know|get back|do that)|let me (?:try|check|test|look into)|will (?:try|test|investigate))/i;
+
+  function extractCodeBlocks(text, maxBlocks = 3, maxBlockChars = 400) {
+    const blocks = [];
+    const seen = new Set();
+    let m;
+    CODE_BLOCK_RE.lastIndex = 0;
+    while ((m = CODE_BLOCK_RE.exec(text || '')) !== null) {
+      if (blocks.length >= maxBlocks) break;
+      let code = (m[2] || '').trim();
+      if (code.length < 12) continue;
+      const key = code.slice(0, 100);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (code.length > maxBlockChars) code = code.slice(0, maxBlockChars - 3) + '…';
+      blocks.push({ lang: (m[1] || '').trim(), code });
+    }
+    return blocks;
+  }
+
+  function extractDecisions(text, maxLines = 5, maxLen = 180) {
+    if (!text) return [];
+    // Strip code blocks but keep inline code placeholders for readability
+    const noBlocks = text.replace(CODE_BLOCK_RE, ' ');
+    const sentences = noBlocks.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+    const picks = [];
+    const seen = new Set();
+    for (const s of sentences) {
+      if (s.length < 20 || s.length > 300) continue;
+      if (/\?\s*$/.test(s)) continue;                        // skip questions
+      if (s.replace(/`[^`]*`/g, '').trim().split(/\s+/).length < 5) continue; // too short after stripping code
+      if (!DECISION_RE.test(s)) continue;
+      const key = s.slice(0, 40).toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      picks.push(s.length > maxLen ? s.slice(0, maxLen - 1) + '…' : s);
+      if (picks.length >= maxLines) break;
+    }
+    return picks;
+  }
+
+  function firstUserMessage(conv, maxLen = 160) {
+    const m = (conv.messages || []).find(x => x.role === 'user');
+    return m ? truncate(m.content, maxLen) : '';
+  }
+
+  function lastAssistantTakeaway(conv, maxLen = 220) {
+    const msgs = conv.messages || [];
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'assistant') {
+        // Strip fenced code blocks but preserve inline `code` (we're emitting markdown)
+        const raw = (msgs[i].content || '').replace(CODE_BLOCK_RE, ' ').replace(/\s+/g, ' ').trim();
+        return truncate(raw, maxLen);
+      }
+    }
+    return '';
+  }
+
+  function findOpenQuestions(convs) {
+    const qs = [];
+    for (const conv of convs) {
+      const msgs = conv.messages || [];
+      const allText = msgs.map(m => m.content || '').join(' \n ');
+      const resolved = COMPLETION_RE.test(allText);
+      if (resolved) continue;
+      // Last user message that's a question
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const m = msgs[i];
+        if (m.role !== 'user') continue;
+        if (QUESTION_RE.test(m.content || '')) {
+          qs.push({ q: truncate(m.content, 220), title: conv.title });
+        } else if (PROMISE_RE.test(m.content || '')) {
+          qs.push({ q: `(promise to report back) ${truncate(m.content, 200)}`, title: conv.title });
+        }
+        break;
+      }
+      if (qs.length >= 5) break;
+    }
+    return qs;
+  }
+
+  function topCoEntities(entityId, limit = 6) {
+    if (!entityId) return [];
+    const scores = {};
+    state.links.forEach(l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      if (sid === entityId) scores[tid] = (scores[tid] || 0) + l.weight;
+      else if (tid === entityId) scores[sid] = (scores[sid] || 0) + l.weight;
+    });
+    return Object.entries(scores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id]) => state.entities.find(e => e.id === id))
+      .filter(Boolean)
+      .map(e => e.name);
+  }
+
+  function buildContextBundle(opts) {
+    opts = opts || {};
+    const maxConvs = opts.maxConvs || 6;
+    let title = 'Context Bundle';
+    let scopeLabel = '';
+    let convs = [];
+    let entity = null;
+
+    if (opts.type === 'entity') {
+      entity = state.entities.find(e => e.id === opts.entityId);
+      if (!entity) return { markdown: '', stats: {} };
+      title = entity.name;
+      scopeLabel = `all ${entity.conversations.length} conversations mentioning ${entity.name}`;
+      convs = entity.conversations
+        .map(ci => state.conversations[ci])
+        .filter(Boolean);
+    } else if (opts.type === 'conversation') {
+      const conv = state.conversations[opts.convIdx];
+      if (!conv) return { markdown: '', stats: {} };
+      title = conv.title || 'Untitled';
+      scopeLabel = 'this single conversation';
+      convs = [conv];
+    } else if (opts.type === 'loose-end') {
+      const le = state.looseEnds.find(l => l.id === opts.looseEndId);
+      if (!le) return { markdown: '', stats: {} };
+      if (le.type === 'repeated-unresolved' || le.type === 'dormant') {
+        return buildContextBundle({ type: 'entity', entityId: le.entityId, maxConvs });
+      }
+      return buildContextBundle({ type: 'conversation', convIdx: le.convIdx, maxConvs });
+    } else {
+      return { markdown: '', stats: {} };
+    }
+
+    // Sort conversations by recency, cap
+    convs = convs
+      .map(c => ({ conv: c, t: c.created ? new Date(c.created).getTime() : 0 }))
+      .sort((a, b) => a.t - b.t) // chronological for readability
+      .map(x => x.conv);
+    const allConvs = convs;
+    if (convs.length > maxConvs) {
+      // Keep the first one (origin) + most-recent (maxConvs - 1)
+      convs = [convs[0], ...convs.slice(-maxConvs + 1)];
+    }
+
+    // Aggregate extractions
+    const combinedText = convs.flatMap(c => (c.messages || []).map(m => m.content || '')).join('\n\n');
+    const codeBlocks = extractCodeBlocks(combinedText, 3, 450);
+    const decisions = extractDecisions(combinedText, 5, 200);
+    const openQs = findOpenQuestions(convs);
+    const relatedTopics = entity ? topCoEntities(entity.id, 8) : [];
+    const dateSpan = (() => {
+      const ds = allConvs.map(c => c.created ? new Date(c.created) : null).filter(Boolean);
+      if (!ds.length) return '';
+      const min = new Date(Math.min(...ds.map(d => d.getTime())));
+      const max = new Date(Math.max(...ds.map(d => d.getTime())));
+      const fmt = d => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      return min.toDateString() === max.toDateString() ? fmt(max) : `${fmt(min)} – ${fmt(max)}`;
+    })();
+
+    // Build markdown
+    const lines = [];
+    lines.push(`# Context: ${title}`);
+    lines.push('');
+    lines.push(`> Continuing work from ${allConvs.length} prior conversation${allConvs.length === 1 ? '' : 's'}${dateSpan ? ` (${dateSpan})` : ''}. This brief was generated by [Synaptic](https://github.com/synaptic) from my AI conversation history — paste it into a fresh chat to pick up where I left off.`);
+    lines.push('');
+
+    // What I'm working on
+    const seed = firstUserMessage(allConvs[0] || {}, 220);
+    if (seed) {
+      lines.push('## What I\'m working on');
+      lines.push(seed);
+      lines.push('');
+    }
+
+    // Prior conversations summary
+    if (convs.length > 0) {
+      lines.push(`## Prior conversations${allConvs.length > convs.length ? ` (${convs.length} of ${allConvs.length} shown)` : ''}`);
+      convs.forEach((c) => {
+        const when = c.created ? new Date(c.created).toLocaleDateString() : 'unknown date';
+        const seedQ = firstUserMessage(c, 160);
+        const take = lastAssistantTakeaway(c, 200);
+        lines.push(`### ${when} — ${c.title || 'Untitled'}`);
+        if (seedQ) lines.push(`- **I asked:** ${seedQ}`);
+        if (take) lines.push(`- **Takeaway:** ${take}`);
+        lines.push('');
+      });
+    }
+
+    // Decisions / recommendations made
+    if (decisions.length) {
+      lines.push('## Decisions & recommendations so far');
+      decisions.forEach(d => lines.push(`- ${d}`));
+      lines.push('');
+    }
+
+    // Code snippets
+    if (codeBlocks.length) {
+      lines.push('## Code shared so far');
+      codeBlocks.forEach(b => {
+        lines.push('```' + (b.lang || ''));
+        lines.push(b.code);
+        lines.push('```');
+        lines.push('');
+      });
+    }
+
+    // Related topics
+    if (relatedTopics.length) {
+      lines.push('## Related topics discussed');
+      lines.push(relatedTopics.join(', '));
+      lines.push('');
+    }
+
+    // Open questions / where I'm stuck
+    if (openQs.length) {
+      lines.push('## Where I left off / open questions');
+      openQs.forEach(q => lines.push(`- ${q.q} _(from "${q.title}")_`));
+      lines.push('');
+    }
+
+    lines.push('---');
+    lines.push('');
+    lines.push('**Please help me continue from here.** Ask me clarifying questions if you need more context.');
+
+    const markdown = lines.join('\n');
+    return {
+      markdown,
+      title,
+      stats: {
+        convs: convs.length,
+        totalConvs: allConvs.length,
+        messages: convs.reduce((n, c) => n + (c.messages?.length || 0), 0),
+        codeBlocks: codeBlocks.length,
+        decisions: decisions.length,
+        openQs: openQs.length,
+        chars: markdown.length
+      }
+    };
+  }
+
+  // ─── Bundle Modal UI ───
+  function openBundleModal(opts) {
+    const { markdown, title, stats } = buildContextBundle(opts);
+    if (!markdown) return;
+    document.getElementById('bundle-title-text').textContent = `Resume prompt: ${title}`;
+    const parts = [];
+    if (stats.totalConvs) parts.push(`${stats.convs} of ${stats.totalConvs} conversations`);
+    else if (stats.convs) parts.push(`${stats.convs} conversation${stats.convs === 1 ? '' : 's'}`);
+    if (stats.messages) parts.push(`${stats.messages} messages`);
+    if (stats.codeBlocks) parts.push(`${stats.codeBlocks} code block${stats.codeBlocks === 1 ? '' : 's'}`);
+    if (stats.openQs) parts.push(`${stats.openQs} open question${stats.openQs === 1 ? '' : 's'}`);
+    document.getElementById('bundle-subtitle-text').textContent =
+      `Paste this into a fresh ChatGPT, Claude, or Cursor chat to resume work with full context.`;
+    document.getElementById('bundle-stats').textContent =
+      parts.join(' · ') + ` · ${stats.chars.toLocaleString()} chars`;
+    document.getElementById('bundle-body').textContent = markdown;
+    document.getElementById('bundle-body').dataset.markdown = markdown;
+    document.getElementById('bundle-body').dataset.title = title;
+
+    const copyBtn = document.getElementById('bundle-copy-btn');
+    copyBtn.classList.remove('copied');
+    copyBtn.textContent = 'Copy to clipboard';
+
+    document.getElementById('bundle-modal').classList.add('open');
+  }
+
+  function closeBundleModal() {
+    document.getElementById('bundle-modal').classList.remove('open');
+  }
+
+  async function copyBundleToClipboard() {
+    const body = document.getElementById('bundle-body');
+    const md = body.dataset.markdown || body.textContent;
+    const btn = document.getElementById('bundle-copy-btn');
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(md);
+      } else {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = md;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      btn.classList.add('copied');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.textContent = 'Copy to clipboard';
+      }, 1800);
+    } catch (err) {
+      alert('Could not copy to clipboard: ' + err.message);
+    }
+  }
+
+  function downloadBundle() {
+    const body = document.getElementById('bundle-body');
+    const md = body.dataset.markdown || body.textContent;
+    const title = body.dataset.title || 'bundle';
+    const safeName = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-|-$/g, '') || 'bundle';
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `synaptic-bundle-${safeName}.md`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
+  }
+
+  const LE_TYPE_LABELS = {
+    'hanging-question':    'Unanswered question',
+    'follow-up-promise':   "You said you'd follow up",
+    'repeated-unresolved': 'Keeps coming up, never solved',
+    'dormant':             'Went quiet'
+  };
+  const LE_TYPE_TOOLTIPS = {
+    'hanging-question':    'The last thing you said in that chat was a question — no answer ever came.',
+    'follow-up-promise':   "You told the AI you'd try something and report back, but you never confirmed it worked.",
+    'repeated-unresolved': "You've asked about this topic in 3+ chats without any 'fixed / works / solved' marker.",
+    'dormant':             'A topic you used to discuss a lot suddenly went silent 60+ days ago without resolution.'
+  };
+  const LE_TYPE_COLORS = {
+    'hanging-question':    '#f72585',
+    'follow-up-promise':   '#ffd166',
+    'repeated-unresolved': '#ff8c42',
+    'dormant':             '#06d6a0'
+  };
+
+  function renderLooseEnds() {
+    const container = document.getElementById('loose-ends-container');
+    if (!container) return;
+
+    const items = state.looseEnds || [];
+    const filter = state.looseEndsFilter || 'all';
+    const filtered = filter === 'all' ? items : items.filter(i => i.type === filter);
+
+    const counts = items.reduce((acc, i) => { acc[i.type] = (acc[i.type] || 0) + 1; return acc; }, {});
+
+    if (!items.length) {
+      container.innerHTML = `
+        <div class="le-header">
+          <h2>Loose Ends</h2>
+          <p>Synaptic scans your conversations for four signs of unfinished business: unanswered questions, promised follow-ups that never came, topics you keep bringing up without resolving, and things you used to discuss that went quiet. Nothing flagged yet.</p>
+        </div>
+        <div class="le-empty">
+          <div class="le-empty-icon">✓</div>
+          <div class="le-empty-title">All clear.</div>
+          <div class="le-empty-subtitle">Every thread has either a resolution marker, a recent follow-up, or isn't repetitive enough to flag.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const filters = [
+      { id: 'all', label: `All · ${items.length}` },
+      ...Object.entries(LE_TYPE_LABELS)
+        .filter(([t]) => counts[t])
+        .map(([t, label]) => ({ id: t, label: `${label} · ${counts[t]}` }))
+    ];
+
+    container.innerHTML = `
+      <div class="le-header">
+        <h2>Loose Ends</h2>
+        <p>Things you started with the AI but never finished. Click any card to jump back to that conversation, or build a resume prompt so you can pick up in a fresh chat.</p>
+      </div>
+      <div class="le-filter-row">
+        ${filters.map(f => `
+          <button class="le-filter ${f.id === filter ? 'active' : ''}" data-filter="${f.id}">${esc(f.label)}</button>
+        `).join('')}
+      </div>
+      <div class="le-list">
+        ${filtered.map(item => renderLooseEndCard(item)).join('')}
+      </div>
+    `;
+
+    container.querySelectorAll('.le-filter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.looseEndsFilter = btn.dataset.filter;
+        renderLooseEnds();
+      });
+    });
+
+    container.querySelectorAll('.le-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const actionBtn = e.target.closest('[data-action]');
+        const id = card.dataset.id;
+        const item = state.looseEnds.find(i => i.id === id);
+        if (!item) return;
+        if (actionBtn) {
+          e.stopPropagation();
+          if (actionBtn.dataset.action === 'bundle') {
+            openBundleModal({ type: 'loose-end', looseEndId: item.id });
+          } else if (actionBtn.dataset.action === 'open') {
+            openLooseEnd(item);
+          }
+          return;
+        }
+        openLooseEnd(item);
+      });
+    });
+  }
+
+  function renderLooseEndCard(item) {
+    const when = item.created ? formatRelativeTime(new Date(item.created)) : '';
+    const extra = item.type === 'repeated-unresolved' || item.type === 'dormant'
+      ? `${item.conversationIdxs?.length || 0} conversations`
+      : '';
+    const tip = LE_TYPE_TOOLTIPS[item.type] || '';
+    return `
+      <div class="le-card type-${item.type}" data-id="${esc(item.id)}">
+        <div class="le-card-header">
+          <span class="le-type-badge" title="${esc(tip)}">${esc(LE_TYPE_LABELS[item.type] || item.type)}</span>
+          <span class="le-title">${esc(item.title)}</span>
+          <span class="le-meta">${esc(extra)}${extra && when ? ' · ' : ''}${esc(when)}</span>
+        </div>
+        <div class="le-snippet">${esc(item.snippet || '')}</div>
+        <div class="le-why">${esc(item.why || '')}</div>
+        <div class="le-severity-bar" style="width:${Math.round((item.severity || 0) * 100)}%" title="Priority: ${Math.round((item.severity || 0) * 100)}%"></div>
+        <div class="le-card-actions">
+          <button class="le-action-btn" data-action="bundle" data-id="${esc(item.id)}" title="Build a prompt you can paste into a fresh AI chat to pick up where this left off">📋 Resume prompt</button>
+          <button class="le-action-btn" data-action="open" data-id="${esc(item.id)}">Open conversation →</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function openLooseEnd(item) {
+    if (item.type === 'repeated-unresolved' || item.type === 'dormant') {
+      // Open the entity detail panel if entity is available
+      const ent = state.entities.find(e => e.id === item.entityId);
+      if (ent) {
+        showDetail(ent);
+        return;
+      }
+      // Fallback to first conversation
+      if (item.conversationIdxs?.length) {
+        openConversationViewer(item.conversationIdxs[0], null, item.title);
+      }
+    } else {
+      openConversationViewer(item.convIdx, item.msgIdx, '');
+    }
+  }
+
+  function renderLooseEndsSidebar() {
+    const el = document.getElementById('loose-ends-sidebar');
+    if (!el) return;
+    const items = state.looseEnds || [];
+    if (!items.length) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = 'block';
+    const top = items.slice(0, 4);
+    el.innerHTML = `
+      <div class="section-title">Loose Ends · ${items.length}</div>
+      ${top.map(it => `
+        <div class="le-preview-item" data-id="${esc(it.id)}" title="${esc(it.why || '')}">
+          <span class="le-preview-dot" style="background:${LE_TYPE_COLORS[it.type] || '#888'}"></span>
+          <span class="le-preview-text">${esc(it.title)}</span>
+        </div>
+      `).join('')}
+      ${items.length > top.length ? `<div class="le-sidebar-see-all" data-action="see-all">See all ${items.length} →</div>` : ''}
+    `;
+    el.querySelectorAll('.le-preview-item').forEach(p => {
+      p.addEventListener('click', () => {
+        const item = state.looseEnds.find(i => i.id === p.dataset.id);
+        if (item) openLooseEnd(item);
+      });
+    });
+    const seeAll = el.querySelector('[data-action="see-all"]');
+    if (seeAll) seeAll.addEventListener('click', () => switchView('loose-ends'));
+
+    // Also update the view-btn badge
+    const badge = document.getElementById('loose-ends-count');
+    if (badge) {
+      badge.textContent = items.length;
+      badge.style.display = items.length ? 'inline-flex' : 'none';
+    }
+  }
+
+  function switchView(view) {
+    document.querySelectorAll('.view-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === view);
+    });
+    state.currentView = view;
+    document.getElementById('graph-container').style.display = view === 'graph' ? 'block' : 'none';
+    document.getElementById('timeline-container').className =
+      'timeline-container' + (view === 'timeline' ? ' active' : '');
+    document.getElementById('analytics-container').className =
+      'analytics-container' + (view === 'analytics' ? ' active' : '');
+    document.getElementById('loose-ends-container').className =
+      'loose-ends-container' + (view === 'loose-ends' ? ' active' : '');
+    document.getElementById('year-container').className =
+      'year-container' + (view === 'year' ? ' active' : '');
+    if (view === 'graph') renderGraph();
+    if (view === 'loose-ends') renderLooseEnds();
+    if (view === 'year') renderYearNarrative();
+  }
+
   // ─── View Switching ───
   document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      const view = btn.dataset.view;
-      state.currentView = view;
-
-      document.getElementById('graph-container').style.display = view === 'graph' ? 'block' : 'none';
-      document.getElementById('timeline-container').className =
-        'timeline-container' + (view === 'timeline' ? ' active' : '');
-      document.getElementById('analytics-container').className =
-        'analytics-container' + (view === 'analytics' ? ' active' : '');
-
-      if (view === 'graph') renderGraph();
-    });
+    btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
 
   // ─── Search ───
@@ -1616,20 +5670,91 @@
   document.getElementById('import-more-btn')?.addEventListener('click', () => fileInput.click());
   document.getElementById('demo-btn').addEventListener('click', generateDemoData);
 
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
+  // Gate all imports through secret scanner
+  function safelyImport(data) {
+    const secrets = scanForSecrets(data);
+    if (!secrets.length) {
+      importData(data);
+      return;
+    }
+    openSecretModal(secrets, (decision) => {
+      if (decision.action === 'cancel') return;
+      if (decision.action === 'redact') {
+        const cleaned = redactSecrets(data, decision.selected);
+        importData(cleaned);
+      } else if (decision.action === 'keep') {
         importData(data);
+      }
+    });
+  }
+
+  // Read one file as parsed JSON (promise-based for multi-file batching).
+  function readJsonFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try { resolve({ name: file.name, data: JSON.parse(ev.target.result) }); }
+        catch (err) { reject(new Error(`${file.name}: ${err.message}`)); }
+      };
+      reader.onerror = () => reject(new Error(`${file.name}: read failed`));
+      reader.readAsText(file);
+    });
+  }
+
+  // Handle a FileList (from <input> change OR drag-drop). Supports multiple
+  // files: parses each, concatenates conversations, then imports as one batch
+  // so the user gets a single toast + secret scan instead of N prompts.
+  async function handleFileList(files) {
+    const list = Array.from(files || []);
+    if (!list.length) return;
+
+    // Single file — fast path (preserves original data shape for generic parsers)
+    if (list.length === 1) {
+      try {
+        const { data } = await readJsonFile(list[0]);
+        safelyImport(data);
       } catch (err) {
         alert('Error parsing JSON: ' + err.message);
       }
-    };
-    reader.readAsText(file);
+      return;
+    }
+
+    // Multi-file batch — ChatGPT now splits exports into conversations-000.json,
+    // conversations-001.json, etc. Drag all of them at once and we'll merge.
+    const results = [];
+    const errors = [];
+    for (const f of list) {
+      try { results.push(await readJsonFile(f)); }
+      catch (err) { errors.push(err.message); }
+    }
+    if (errors.length) {
+      alert('Some files failed to parse:\n\n' + errors.join('\n'));
+      if (!results.length) return;
+    }
+
+    // Concatenate all arrays; non-array files (e.g. a Claude single-conv file)
+    // are kept as-is for the parser to interpret.
+    let combined = null;
+    for (const r of results) {
+      if (Array.isArray(r.data)) {
+        if (!Array.isArray(combined)) combined = [];
+        combined.push(...r.data);
+      } else if (combined == null) {
+        combined = r.data;
+      } else if (Array.isArray(combined)) {
+        combined.push(r.data);
+      }
+    }
+    if (combined == null) return;
+    if (typeof showToast === 'function' && results.length > 1) {
+      showToast(`Parsed ${results.length} files · importing…`);
+    }
+    safelyImport(combined);
+  }
+
+  fileInput.addEventListener('change', (e) => {
+    handleFileList(e.target.files);
+    e.target.value = ''; // reset so the same file can be re-selected later
   });
 
   // ─── Drag & Drop ───
@@ -1651,19 +5776,7 @@
   });
 
   graphContainer.addEventListener('drop', (e) => {
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        importData(data);
-      } catch (err) {
-        alert('Error parsing JSON: ' + err.message);
-      }
-    };
-    reader.readAsText(file);
+    handleFileList(e.dataTransfer.files);
   });
 
   // ─── Detail Panel Close ───
@@ -1677,6 +5790,553 @@
       renderGraph();
     }
   });
+
+  // ─── Search Modal (⌘K) ───
+  const searchModal = document.getElementById('search-modal');
+  const modalInput = document.getElementById('modal-search-input');
+  const resultsEl = document.getElementById('search-results');
+  let currentResults = [];
+  let selectedResultIdx = 0;
+
+  function openSearchModal() {
+    if (!state.conversations.length) return;
+    searchModal.classList.add('open');
+    modalInput.value = '';
+    resultsEl.innerHTML = `<div class="search-empty">Type to search across ${state.conversations.length} conversations and ${state.searchDocs?.length || 0} messages.</div>`;
+    currentResults = [];
+    selectedResultIdx = 0;
+    setTimeout(() => modalInput.focus(), 20);
+  }
+
+  function closeSearchModal() {
+    searchModal.classList.remove('open');
+    modalInput.blur();
+  }
+
+  function renderSearchResults() {
+    if (!currentResults.length) {
+      resultsEl.innerHTML = `<div class="search-empty">No matches. Try a different term, or remove words.</div>`;
+      return;
+    }
+    resultsEl.innerHTML = currentResults.map((r, i) => {
+      const snippet = buildSnippet(r.content, r.terms, 240);
+      const when = r.created ? new Date(r.created).toLocaleDateString() : '';
+      const roleClass = r.role === 'user' ? 'role-user' : r.role === 'assistant' ? 'role-assistant' : '';
+      return `
+        <div class="search-result ${i === selectedResultIdx ? 'active' : ''}" data-idx="${i}">
+          <div class="search-result-title">
+            <span class="search-result-role-badge ${roleClass}">${esc(r.role)}</span>
+            <span>${esc(r.title)}</span>
+          </div>
+          <div class="search-result-meta">${when}</div>
+          <div class="search-result-snippet">${snippet}</div>
+        </div>
+      `;
+    }).join('');
+    resultsEl.querySelectorAll('.search-result').forEach(el => {
+      el.addEventListener('click', () => {
+        const i = parseInt(el.dataset.idx, 10);
+        openResult(i);
+      });
+    });
+    const active = resultsEl.querySelector('.search-result.active');
+    if (active) active.scrollIntoView({ block: 'nearest' });
+  }
+
+  function openResult(i) {
+    const r = currentResults[i];
+    if (!r) return;
+    closeSearchModal();
+    openConversationViewer(r.convIdx, r.msgIdx, r.terms?.join(' ') || modalInput.value);
+  }
+
+  let searchDebounce = null;
+  modalInput.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    const q = modalInput.value;
+    searchDebounce = setTimeout(() => {
+      currentResults = runSearch(q);
+      selectedResultIdx = 0;
+      renderSearchResults();
+    }, 80);
+  });
+
+  searchModal.addEventListener('click', (e) => {
+    if (e.target === searchModal) closeSearchModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    // ⌘K / Ctrl+K to open search
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (searchModal.classList.contains('open')) closeSearchModal();
+      else openSearchModal();
+      return;
+    }
+    // `?` opens help (when no input is focused)
+    if (e.key === '?' && !(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+      e.preventDefault();
+      if (helpModal.classList.contains('open')) closeHelpModal();
+      else openHelpModal();
+      return;
+    }
+    if (!searchModal.classList.contains('open')) {
+      // Close other modals on Esc even when search isn't open
+      if (e.key === 'Escape') {
+        if (document.getElementById('mirror-modal').classList.contains('open')) {
+          closeMirror();
+          return;
+        }
+        if (helpModal.classList.contains('open')) {
+          closeHelpModal();
+          return;
+        }
+        if (document.getElementById('secret-modal').classList.contains('open')) {
+          const cb = secretResolver;
+          closeSecretModal();
+          if (cb) cb({ action: 'cancel' });
+          return;
+        }
+        if (document.getElementById('bundle-modal').classList.contains('open')) {
+          closeBundleModal();
+          return;
+        }
+        if (document.getElementById('conv-modal').classList.contains('open')) {
+          closeConvViewer();
+        }
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      closeSearchModal();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (currentResults.length) {
+        selectedResultIdx = (selectedResultIdx + 1) % currentResults.length;
+        renderSearchResults();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (currentResults.length) {
+        selectedResultIdx = (selectedResultIdx - 1 + currentResults.length) % currentResults.length;
+        renderSearchResults();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      openResult(selectedResultIdx);
+    }
+  });
+
+  document.getElementById('open-search-btn').addEventListener('click', openSearchModal);
+
+  // Update the kbd hint based on platform
+  (function setKbdHint() {
+    const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+    const hint = document.getElementById('search-kbd-hint');
+    if (hint) hint.textContent = isMac ? '⌘K' : 'Ctrl+K';
+  })();
+
+  // ─── Conversation Viewer ───
+  const convModal = document.getElementById('conv-modal');
+
+  function openConversationViewer(convIdx, highlightMsgIdx, highlightTerms) {
+    const conv = state.conversations[convIdx];
+    if (!conv) return;
+
+    document.getElementById('conv-viewer-title').textContent = conv.title || 'Untitled';
+    const when = conv.created ? new Date(conv.created).toLocaleString() : '';
+    document.getElementById('conv-viewer-meta').textContent =
+      `${(conv.messages || []).length} messages · ${esc(conv.source || 'import')} · ${when}`;
+
+    // Parse highlight terms string into token list
+    const terms = (highlightTerms || '').toLowerCase().match(/[a-z0-9][a-z0-9.#+_-]*/g) || [];
+
+    const body = document.getElementById('conv-viewer-body');
+    const deja = findDejaVu(convIdx);
+    const dejaBanner = deja.length ? `
+      <div class="dejavu-banner" id="dejavu-banner" data-count="${deja.length}">
+        <span class="dejavu-icon">∞</span>
+        <span>You've touched these topics in <strong>${deja.length}</strong> earlier conversation${deja.length === 1 ? '' : 's'}.</span>
+        <span style="margin-left:auto;color:var(--accent-purple);font-weight:600">Show me</span>
+      </div>
+      <div class="dejavu-list" id="dejavu-list" style="display:none">
+        ${deja.map(d => `
+          <div class="dejavu-item" data-conv-idx="${d.convIdx}">
+            <span class="dejavu-item-date">${d.date ? new Date(d.date).toLocaleDateString() : ''}</span>
+            ${esc(d.conv.title || 'Untitled')}
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
+
+    const msgHtml = (conv.messages || []).map((msg, mi) => {
+      const roleClass = msg.role === 'user' ? 'role-user'
+                      : msg.role === 'assistant' ? 'role-assistant' : '';
+      const isHighlight = mi === highlightMsgIdx;
+      let content = esc(msg.content || '');
+      for (const t of terms) {
+        if (t.length < 2) continue;
+        const re = new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        content = content.replace(re, '<mark>$1</mark>');
+      }
+      // Hallucination badge on suspicious assistant responses
+      let hallucBadge = '';
+      if ((msg.role === 'assistant' || msg.role === 'model') && msg.content) {
+        const h = detectHallucinations(msg.content);
+        if (h.score >= 2) {
+          const levelClass = h.score >= 3 ? '' : 'level-low';
+          hallucBadge = `<span class="halluc-badge ${levelClass}" title="Triggered: ${esc(h.reasons.join(' · '))}">⚠ ${h.score} flag${h.score === 1 ? '' : 's'}</span>`;
+        }
+      }
+      return `
+        <div class="conv-message ${roleClass} ${isHighlight ? 'highlight' : ''}" data-msg-idx="${mi}">
+          <div class="conv-message-role">${esc(msg.role || 'unknown')}${hallucBadge}</div>
+          <div class="conv-message-content">${content}</div>
+        </div>
+      `;
+    }).join('');
+
+    body.innerHTML = renderAnnotationPanel('conversations', convIdx) + dejaBanner + msgHtml;
+    wireAnnotationPanel(body);
+
+    const dejaBanEl = document.getElementById('dejavu-banner');
+    if (dejaBanEl) {
+      dejaBanEl.addEventListener('click', () => {
+        const list = document.getElementById('dejavu-list');
+        list.style.display = list.style.display === 'none' ? 'block' : 'none';
+      });
+      body.querySelectorAll('.dejavu-item').forEach(it => {
+        it.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const ci = parseInt(it.dataset.convIdx, 10);
+          if (!isNaN(ci)) openConversationViewer(ci, null, '');
+        });
+      });
+    }
+
+    convModal.classList.add('open');
+
+    // Scroll to highlighted message
+    if (highlightMsgIdx != null) {
+      setTimeout(() => {
+        const el = body.querySelector(`[data-msg-idx="${highlightMsgIdx}"]`);
+        if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 50);
+    } else {
+      body.scrollTop = 0;
+    }
+  }
+
+  function closeConvViewer() {
+    convModal.classList.remove('open');
+  }
+
+  document.getElementById('conv-viewer-close').addEventListener('click', closeConvViewer);
+  convModal.addEventListener('click', (e) => {
+    if (e.target === convModal) closeConvViewer();
+  });
+
+  // Bundle button inside conv viewer header (bundles just this conversation)
+  let currentConvIdx = null;
+  const origOpenConv = openConversationViewer;
+  openConversationViewer = function(convIdx, highlightMsgIdx, highlightTerms) {
+    currentConvIdx = convIdx;
+    return origOpenConv(convIdx, highlightMsgIdx, highlightTerms);
+  };
+  document.getElementById('conv-bundle-btn').addEventListener('click', () => {
+    if (currentConvIdx != null) {
+      openBundleModal({ type: 'conversation', convIdx: currentConvIdx });
+    }
+  });
+
+  // ─── Bundle Modal Wiring ───
+  const bundleModal = document.getElementById('bundle-modal');
+  document.getElementById('bundle-copy-btn').addEventListener('click', copyBundleToClipboard);
+  document.getElementById('bundle-download-btn').addEventListener('click', downloadBundle);
+  document.getElementById('bundle-close-btn').addEventListener('click', closeBundleModal);
+  bundleModal.addEventListener('click', (e) => {
+    if (e.target === bundleModal) closeBundleModal();
+  });
+
+  // ─── Help Modal ───
+  const HELP_CONTENT = [
+    {
+      title: 'Getting started',
+      items: [
+        { label: 'Import',        desc: 'Drop a <strong>ChatGPT</strong> or <strong>Claude</strong> export (JSON) onto the page, or use the + Import button. The file never leaves your browser.' },
+        { label: 'Try Demo Data', desc: 'Click the button on the empty state to explore the app with a realistic fake dataset before you import your own.' },
+        { label: 'Persistence',   desc: 'Your imported data is saved locally (IndexedDB). Close the tab and come back — it will be there. Hit <strong>Clear all data</strong> in the Backup menu to wipe it.' }
+      ]
+    },
+    {
+      title: 'Views',
+      items: [
+        { label: 'Graph',        desc: 'Interactive force graph. Node size = mention count. Color = topic cluster. Drag, zoom, click any node to open details.' },
+        { label: 'Timeline',     desc: 'Your conversations laid out chronologically, with tags, pin stars, status pills, and a quality bar. Click any card to read the full conversation.' },
+        { label: 'Analytics',    desc: 'Bar charts and summary stats: most-mentioned entities, hub topics, entity-type breakdown.' },
+        { label: 'Loose Ends',   desc: 'Things you started with the AI but never finished — unanswered questions, promised follow-ups, repeats, dormant topics. Click any card to jump back, or build a resume prompt.' },
+        { label: 'Your AI Year', desc: 'Month-by-month narrative of your AI conversations — what dominated, what was new, what quietly dropped, how deep the chats went.' },
+        { label: '✨ Mirror',     desc: 'Personal reveal. Synaptic computes your archetype (Midnight Debugger? Architect? Power User?), surfaces your tells (filler words), animates your knowledge graph growing over time, and flags hallucination-ish AI responses. Downloads as a shareable PNG — all computed on your device.' }
+      ]
+    },
+    {
+      title: 'Find things fast',
+      items: [
+        { label: '<kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>', desc: 'Full-text search across every message in every conversation. Fuzzy matching tolerates typos, title is boosted, terms are highlighted. <kbd>↑</kbd><kbd>↓</kbd> to navigate, <kbd>↵</kbd> to open.' },
+        { label: 'Filter graph',                       desc: 'The search box at the top filters the force graph to matching entity names.' },
+        { label: 'Déjà vu banner',                     desc: 'When you open a conversation, Synaptic checks whether you\'ve touched the same topics in earlier chats. If there\'s overlap, a banner appears — click to see the list.' }
+      ]
+    },
+    {
+      title: 'Make it yours',
+      items: [
+        { label: '★ Pin',            desc: 'Pin any entity or conversation to the sidebar for one-click access. Click the "Pin, tag, or note this" row in the detail panel.' },
+        { label: 'Status',           desc: 'Mark conversations as Open / In progress / Resolved / Abandoned. Status pills show up in the timeline so you can scan "what is still open" at a glance.' },
+        { label: 'Tags',             desc: 'Free-form <em>#tags</em> on anything. Grouping is up to you — "work", "side-project", "hiring", whatever fits.' },
+        { label: 'Private notes',    desc: 'Every entity and conversation has a note field — up to 2000 chars, stays on your device.' }
+      ]
+    },
+    {
+      title: 'Power features',
+      items: [
+        { label: '📋 Resume prompt', desc: 'One-click Markdown prompt you can paste into a fresh ChatGPT / Claude / Cursor chat to pick up instantly where you left off. Available on entity panel, loose end cards, and the conversation viewer.' },
+        { label: 'Secret scanner',   desc: 'Every import is scanned for 14 patterns of secrets (API keys, emails, phones, credit cards, private keys) <em>before</em> they enter the graph. You choose what to redact.' },
+        { label: 'Alias suggestions',desc: 'Synaptic uses fuzzy matching to detect entity duplicates (like <em>k8s</em> ↔ <em>Kubernetes</em>) and offers them in the sidebar. Merge with one click.' },
+        { label: 'Backup',           desc: 'Export a full snapshot to JSON (conversations + annotations + merge decisions). Import on another device or after clearing cache. No server, no cloud.' }
+      ]
+    }
+  ];
+
+  function renderHelpBody() {
+    return HELP_CONTENT.map(g => `
+      <div class="help-group">
+        <div class="help-group-title">${g.title}</div>
+        ${g.items.map(it => `
+          <div class="help-item">
+            <div class="help-item-label">${it.label}</div>
+            <div class="help-item-desc">${it.desc}</div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  const helpModal = document.getElementById('help-modal');
+  function openHelpModal() {
+    document.getElementById('help-body').innerHTML = renderHelpBody();
+    helpModal.classList.add('open');
+  }
+  function closeHelpModal() {
+    helpModal.classList.remove('open');
+  }
+  document.getElementById('help-btn').addEventListener('click', openHelpModal);
+  document.getElementById('help-close-btn').addEventListener('click', closeHelpModal);
+  helpModal.addEventListener('click', (e) => {
+    if (e.target === helpModal) closeHelpModal();
+  });
+
+  // Synaptic Mirror wiring
+  const mirrorModal = document.getElementById('mirror-modal');
+  document.getElementById('mirror-btn').addEventListener('click', openMirror);
+  document.getElementById('mirror-close-btn').addEventListener('click', closeMirror);
+  document.getElementById('mirror-download-btn').addEventListener('click', exportMirrorAsPNG);
+  document.getElementById('mirror-copy-btn').addEventListener('click', copyMirrorSummary);
+  mirrorModal.addEventListener('click', (e) => {
+    if (e.target === mirrorModal) closeMirror();
+  });
+
+  // First-time hint: shown once after first successful import
+  const FIRST_HINT_KEY = 'synaptic-first-hint-seen';
+  function maybeShowFirstTimeHint() {
+    try {
+      if (localStorage.getItem(FIRST_HINT_KEY)) return;
+    } catch (e) { /* ignore */ }
+    setTimeout(() => {
+      document.getElementById('first-time-hint').classList.add('show');
+    }, 800);
+  }
+  function dismissFirstTimeHint() {
+    document.getElementById('first-time-hint').classList.remove('show');
+    try { localStorage.setItem(FIRST_HINT_KEY, '1'); } catch (e) {}
+  }
+  document.getElementById('first-time-hint-dismiss').addEventListener('click', dismissFirstTimeHint);
+  document.getElementById('first-time-hint-show').addEventListener('click', () => {
+    dismissFirstTimeHint();
+    openHelpModal();
+  });
+
+  // ─── Secret Redaction Modal ───
+  const secretModal = document.getElementById('secret-modal');
+  let secretResolver = null;
+
+  function openSecretModal(findings, callback) {
+    secretResolver = callback;
+    const totalCount = findings.reduce((n, f) => n + f.count, 0);
+    const body = document.getElementById('secret-body');
+    body.innerHTML = findings.map(f => `
+      <label class="secret-item">
+        <input type="checkbox" value="${esc(f.id)}" checked />
+        <div>
+          <div class="secret-item-label">${esc(f.label)} <span class="secret-item-count">· ${f.count} ${f.count === 1 ? 'match' : 'matches'}</span></div>
+          <div class="secret-item-sample">${f.samples.map(s => esc(s)).join('  ·  ')}</div>
+        </div>
+      </label>
+    `).join('');
+    document.getElementById('secret-summary').textContent =
+      `${totalCount} ${totalCount === 1 ? 'value' : 'values'} detected across ${findings.length} ${findings.length === 1 ? 'category' : 'categories'}.`;
+    secretModal.classList.add('open');
+  }
+
+  function closeSecretModal() {
+    secretModal.classList.remove('open');
+    secretResolver = null;
+  }
+
+  document.getElementById('secret-redact-btn').addEventListener('click', () => {
+    const selected = [...document.querySelectorAll('#secret-body input[type=checkbox]:checked')]
+      .map(el => el.value);
+    const cb = secretResolver;
+    closeSecretModal();
+    if (cb) cb({ action: 'redact', selected });
+  });
+  document.getElementById('secret-keep-btn').addEventListener('click', () => {
+    const cb = secretResolver;
+    closeSecretModal();
+    if (cb) cb({ action: 'keep' });
+  });
+  document.getElementById('secret-cancel-btn').addEventListener('click', () => {
+    const cb = secretResolver;
+    closeSecretModal();
+    if (cb) cb({ action: 'cancel' });
+  });
+  secretModal.addEventListener('click', (e) => {
+    if (e.target === secretModal) {
+      const cb = secretResolver;
+      closeSecretModal();
+      if (cb) cb({ action: 'cancel' });
+    }
+  });
+
+  // ─── Backup menu ───
+  const backupBtn = document.getElementById('backup-btn');
+  const backupDropdown = document.getElementById('backup-dropdown');
+  const backupFileInput = document.getElementById('backup-file-input');
+
+  backupBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    backupDropdown.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.backup-menu')) backupDropdown.classList.remove('open');
+  });
+
+  document.getElementById('backup-export-btn').addEventListener('click', () => {
+    backupDropdown.classList.remove('open');
+    if (!state.conversations.length) { alert('Nothing to export yet — import some conversations first.'); return; }
+    const snapshot = {
+      kind: 'synaptic-backup',
+      version: STORE_VERSION,
+      exportedAt: new Date().toISOString(),
+      importedAt: state.importedAt,
+      conversations: state.conversations,
+      entities: state.entities.map(e => ({
+        id: e.id, name: e.name, type: e.type, count: e.count,
+        conversations: e.conversations, cluster: e.cluster
+      })),
+      links: state.links.map(l => ({
+        source: typeof l.source === 'object' ? l.source.id : l.source,
+        target: typeof l.target === 'object' ? l.target.id : l.target,
+        weight: l.weight
+      })),
+      clusters: state.clusters.map(c => ({
+        id: c.id, name: c.name, color: c.color, count: c.count,
+        entities: c.entities.map(e => e.id)
+      })),
+      annotations: state.annotations,
+      aliases: state.aliases,
+      aliasRejections: state.aliasRejections,
+      qualityScores: state.qualityScores
+    };
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.download = `synaptic-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Backup saved — ${state.conversations.length} conversations exported.`);
+  });
+
+  document.getElementById('backup-import-btn').addEventListener('click', () => {
+    backupDropdown.classList.remove('open');
+    backupFileInput.click();
+  });
+
+  backupFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const snap = JSON.parse(ev.target.result);
+        if (snap.kind !== 'synaptic-backup') {
+          alert('That file does not look like a Synaptic backup. It should have been exported from this app.');
+          return;
+        }
+        if (state.conversations.length && !confirm(`This will replace your current ${state.conversations.length} conversations with ${snap.conversations?.length || 0} from the backup. Continue?`)) {
+          return;
+        }
+        state.conversations = (snap.conversations || []).map(c => ({
+          ...c,
+          created: c.created ? new Date(c.created) : null
+        }));
+        state.entities = snap.entities || [];
+        state.links = snap.links || [];
+        const byId = Object.fromEntries(state.entities.map(e => [e.id, e]));
+        state.clusters = (snap.clusters || []).map(c => ({
+          ...c,
+          entities: (c.entities || []).map(id => byId[id]).filter(Boolean)
+        }));
+        state.importedAt = snap.importedAt || snap.exportedAt;
+        state.annotations = snap.annotations || { conversations: {}, entities: {} };
+        if (!state.annotations.conversations) state.annotations.conversations = {};
+        if (!state.annotations.entities) state.annotations.entities = {};
+        state.aliases = snap.aliases || {};
+        state.aliasRejections = snap.aliasRejections || {};
+        state.qualityScores = snap.qualityScores || {};
+        state.yearNarrative = null;
+        buildSearchIndex();
+        state.looseEnds = detectLooseEnds();
+        if (!Object.keys(state.qualityScores).length) computeQualityScores();
+        persistSnapshot();
+        renderUI();
+        showToast(`Restored ${state.conversations.length} conversations from backup.`);
+      } catch (err) {
+        alert('Could not read backup: ' + err.message);
+      } finally {
+        backupFileInput.value = '';
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ─── Clear stored data ───
+  document.getElementById('clear-data-btn').addEventListener('click', async () => {
+    if (!confirm('Clear all stored conversations and analysis? This only affects your local browser storage.')) return;
+    await idbDelete(STORE_KEY);
+    location.reload();
+  });
+
+  // ─── Restore toast dismiss ───
+  document.getElementById('restore-toast-dismiss').addEventListener('click', () => {
+    document.getElementById('restore-toast').classList.remove('show');
+  });
+
+  // ─── Boot: try to restore a previous session ───
+  tryRestoreSnapshot();
   </script>
 </body>
 </html>
